@@ -2,14 +2,24 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>แดชบอร์ดตรวจวัดฝุ่นละออง</title>
 
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <style>
     body { font-family: 'Arial', sans-serif; background: #f4f7fa; margin: 0; }
@@ -20,16 +30,25 @@
     .card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     .grid { display: flex; flex-wrap: wrap; gap: 1rem; }
     .grid .card { flex: 1; min-width: 200px; }
-    #map { width: 100%; height: 300px; }
-    button { margin-left: 1rem; }
-    #chartContainer { width: 100%; overflow-x: auto; }
-    canvas { width: 100% !important; height: 400px !important; }
+    #map { width: 80%; max-width: 600px; height: 300px; margin: 0 auto; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    canvas { width: 100% !important; height: 300px !important; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 8px; text-align: center; font-size: 14px; }
+    th { background: #e6f0ff; }
+
+    /* Modal Style */
+    #historyModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
+    #historyModalContent { background:white; padding:20px; border-radius:8px; max-width:90%; max-height:90%; overflow:auto; position:relative; }
+    #historyModalContent button { position:absolute; top:10px; right:10px; background:red; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; }
   </style>
 </head>
+
 <body>
   <header>
     <h1>แดชบอร์ดเครื่องวัดฝุ่น - โรงงานผสมคอนกรีต</h1>
   </header>
+
   <nav>
     <a href="#realtime">ข้อมูล Real-Time</a>
     <a href="#chart">กราฟ</a>
@@ -38,6 +57,8 @@
   </nav>
 
   <div class="container">
+
+    <!-- Section Realtime -->
     <section id="realtime" class="grid">
       <div class="card"><h3>ค่าฝุ่นละออง (PM2.5)</h3><div id="pmValue">--</div></div>
       <div class="card"><h3>ค่าฝุ่นละออง (PM10)</h3><div id="pm10Value">--</div></div>
@@ -46,275 +67,171 @@
       <div class="card"><h3>สถานะปั๊ม</h3><div id="pumpStatus">--</div></div>
       <div class="card"><h3>ระดับอันตราย</h3><div id="dangerLevel">--</div></div>
     </section>
+
+    <!-- Section Chart -->
     <section id="chart" class="card" style="border: 2px solid #ccc;">
-      <h3>กราฟค่าฝุ่น</h3>
-      <label for="dustType">เลือกค่าฝุ่น: </label>
-      <select id="dustType" onchange="updateChart()">
-        <option value="pm25" selected>PM2.5</option>
-        <option value="pm10">PM10</option>
-      </select>
-      <button onclick="downloadCSV()">📥 ดาวน์โหลด CSV</button>
-      <div id="chartContainer">
-        <canvas id="pmChart"></canvas>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>กราฟแสดงค่าต่าง ๆ</h3>
+        <div style="display: flex; gap: 20px; align-items: center;">
+          <div id="timeRange" style="font-size: 14px; color: #555;"></div> 
+          <div id="currentTime" style="font-size: 14px; color: #555; border: 1px solid #ccc; padding: 5px 10px; border-radius: 6px;"></div> 
+        </div>
+      </div>
+      <button onclick="downloadCSV()">📥 ดาวน์โหลด CSV (ล่าสุด)</button>
+      <button onclick="downloadPDF()">📥 ดาวน์โหลด PDF (ล่าสุด)</button>
+      <div style="display: flex; gap: 1rem; overflow-x: auto; margin-top: 1rem;">
+        <div style="flex: 1; min-width: 400px;"><canvas id="pm25Chart"></canvas></div>
+        <div style="flex: 1; min-width: 400px;"><canvas id="pm10Chart"></canvas></div>
+        <div style="flex: 1; min-width: 400px;"><canvas id="tempChart"></canvas></div>
+        <div style="flex: 1; min-width: 400px;"><canvas id="humChart"></canvas></div>
       </div>
     </section>
 
+    <!-- Section History -->
     <section id="history" class="card">
-      <h3>ดูค่าฝุ่นย้อนหลัง</h3>
+      <h3>ดูข้อมูลย้อนหลัง</h3>
+      <label>วันที่เริ่มต้น:</label>
       <input type="date" id="startDate">
+      <label>วันที่สิ้นสุด:</label>
       <input type="date" id="endDate">
-      <button onclick="fetchHistory()">แสดงข้อมูล</button>
-      <button onclick="downloadHistoryCSV()">📥 ดาวน์โหลด CSV</button>
-      <div id="historyData"></div>
+      <br><br>
+      <button onclick="showHistory()">📄 แสดงข้อมูลย้อนหลัง</button>
+      <button onclick="downloadHistoryCSV()">📥 ดาวน์โหลดข้อมูลย้อนหลัง (CSV)</button>
     </section>
-    
 
+    <!-- Section Map -->
     <section id="map" class="card">
       <h3>แผนที่ติดตั้งเครื่อง</h3>
       <div id="map"></div>
     </section>
+
   </div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
-      authDomain: "air-quality-monitor-80a0c.firebaseapp.com",
-      databaseURL: "https://air-quality-monitor-80a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "air-quality-monitor-80a0c",
-      storageBucket: "air-quality-monitor-80a0c.appspot.com",
-      messagingSenderId: "625949588545",
-      appId: "1:625949588545:web:479e4636bf048615e19ac0"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  <!-- Modal Popup -->
+  <div id="historyModal">
+    <div id="historyModalContent">
+      <button onclick="closeModal()">X</button>
+      <h3>ข้อมูลย้อนหลัง</h3>
+      <div id="historyData"></div>
+    </div>
+  </div>
 
-    db.ref("iot_data").orderByKey().limitToLast(1).on("value", snapshot => {
+<script>
+// 🔥 Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
+  authDomain: "air-quality-monitor-80a0c.firebaseapp.com",
+  databaseURL: "https://air-quality-monitor-80a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "air-quality-monitor-80a0c",
+  storageBucket: "air-quality-monitor-80a0c.appspot.com",
+  messagingSenderId: "625949588545",
+  appId: "1:625949588545:web:479e4636bf048615e19ac0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ✅ Real-time Update
+db.ref("iot_data").orderByKey().limitToLast(1).on("value", snapshot => {
   snapshot.forEach(child => {
     const data = child.val();
-
     document.getElementById("pmValue").textContent = data.pm25 + " µg/m³";
     document.getElementById("pm10Value").textContent = data.pm10 + " µg/m³";
     document.getElementById("tempValue").textContent = data.temperature + " °C";
     document.getElementById("humValue").textContent = data.humidity + " %";
     document.getElementById("pumpStatus").textContent = data.pump_status;
-
-    // อัปเดตระดับอันตรายพร้อมสี
-    const dangerEl = document.getElementById("dangerLevel");
-    const status = data.air_status || "Unknown";
-    dangerEl.textContent = status;
-
-    // เคลียร์ style ก่อน
-    dangerEl.style = "";
-
-    // กำหนดสีและสไตล์ตามสถานะ
-    switch (status.toLowerCase()) {
-      case "excellent":
-        dangerEl.style.color = "blue";
-        dangerEl.style.backgroundColor = "#e0f0ff";
-        break;
-      case "good":
-        dangerEl.style.color = "green";
-        dangerEl.style.backgroundColor = "#e0ffe0";
-        break;
-      case "moderate":
-        dangerEl.style.color = "gold";
-        dangerEl.style.backgroundColor = "#fffacc";
-        break;
-      case "unhealthy":
-        dangerEl.style.color = "orange";
-        dangerEl.style.backgroundColor = "#ffe9cc";
-        break;
-      case "very unhealthy":
-        dangerEl.style.color = "red";
-        dangerEl.style.backgroundColor = "#ffd6d6";
-        break;
-      default:
-        dangerEl.style.color = "black";
-        dangerEl.style.backgroundColor = "#f0f0f0";
-        break;
-    }
-
-    // สไตล์ทั่วไปให้ดูเด่น
-    dangerEl.style.fontWeight = "bold";
-    dangerEl.style.padding = "5px 10px";
-    dangerEl.style.borderRadius = "6px";
-    dangerEl.style.display = "inline-block";
-    dangerEl.style.marginTop = "5px";
+    document.getElementById("dangerLevel").textContent = data.air_status || "Unknown";
   });
 });
 
+// ✅ Chart.js
+const charts = {
+  pm25: new Chart(document.getElementById('pm25Chart').getContext('2d'), createChartConfig("PM2.5", 'rgba(0,123,255,1)')),
+  pm10: new Chart(document.getElementById('pm10Chart').getContext('2d'), createChartConfig("PM10", 'rgba(255,165,0,1)')),
+  temp: new Chart(document.getElementById('tempChart').getContext('2d'), createChartConfig("Temperature (°C)", 'rgba(255,99,132,1)')),
+  hum: new Chart(document.getElementById('humChart').getContext('2d'), createChartConfig("Humidity (%)", 'rgba(75,192,192,1)')),
+};
 
-    const ctx = document.getElementById('pmChart').getContext('2d');
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'PM2.5',
-          data: [],
-          backgroundColor: 'rgba(0, 123, 255, 0.2)',
-          borderColor: 'rgba(0, 123, 255, 1)',
-          borderWidth: 2,
-          pointBackgroundColor: '#fff',
-          pointBorderColor: 'rgba(0, 123, 255, 1)',
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          fill: true,
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { labels: { font: { size: 14 } } },
-          tooltip: {
-            callbacks: {
-              title: function(tooltipItems) {
-                return tooltipItems[0].label;
-              }
-            },
-            backgroundColor: '#fff',
-            borderColor: '#ccc',
-            borderWidth: 1,
-            titleColor: '#000',
-            bodyColor: '#000'
-          }
-        },
-        scales: {
-          x: {
-            display: true,
-            title: {
-              display: true,
-              text: 'วันที่และเวลา',
-              font: { size: 14 }
-            },
-            ticks: {
-              autoSkip: true,
-              maxRotation: 45,
-              minRotation: 30
-            }
-          },
-          y: {
-            beginAtZero: true,
-            title: {
-              display: true,
-              text: 'ค่าฝุ่น (µg/m³)',
-              font: { size: 14 }
-            },
-            ticks: {
-              stepSize: 10
-            }
-          }
-        }
+function createChartConfig(label, borderColor) {
+  return {
+    type: 'line',
+    data: { labels: [], datasets: [{ label, data: [], backgroundColor: borderColor.replace('1)', '0.2)'), borderColor, borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 }] },
+    options: {
+      responsive: true,
+      scales: {
+        x: { type: 'time', time: { unit: 'minute', tooltipFormat: 'HH:mm', displayFormats: { minute: 'HH:mm' } }, title: { display: true, text: 'เวลา' }, ticks: { autoSkip: true, maxTicksLimit: 6 }},
+        y: { beginAtZero: true, title: { display: true, text: label }}
       }
-    });
-
-    function updateChart() {
-      const type = document.getElementById("dustType").value;
-      db.ref("iot_data").orderByKey().limitToLast(100).once("value").then(snapshot => {
-        const labels = [], values = [];
-        snapshot.forEach(child => {
-          const data = child.val();
-          const fullTimestamp = data.timestamp || child.key;
-          labels.push(fullTimestamp);
-          values.push(type === "pm10" ? data.pm10 : data.pm25);
-        });
-
-        chart.data.labels = labels;
-        chart.data.datasets[0] = {
-          label: type.toUpperCase(),
-          data: values,
-          backgroundColor: type === "pm10" ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 123, 255, 0.2)',
-          borderColor: type === "pm10" ? 'rgba(255, 165, 0, 1)' : 'rgba(0, 123, 255, 1)',
-          borderWidth: 2,
-          pointBackgroundColor: '#fff',
-          pointBorderColor: type === "pm10" ? 'rgba(255, 165, 0, 1)' : 'rgba(0, 123, 255, 1)',
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          fill: true,
-          tension: 0.3
-        };
-
-        chart.update();
-      });
     }
-
-    function downloadCSV() {
-      const type = document.getElementById("dustType").value;
-      db.ref("iot_data").orderByKey().limitToLast(100).once("value").then(snapshot => {
-        let csv = "Timestamp," + type.toUpperCase() + "\n";
-        snapshot.forEach(child => {
-          const data = child.val();
-          const timestamp = data.timestamp || child.key;
-          const value = type === "pm10" ? data.pm10 : data.pm25;
-          csv += `${timestamp},${value}\n`;
-        });
-
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `dust-${type}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      });
-    }
-
-    function downloadHistoryCSV() {
-  const start = document.getElementById("startDate").value;
-  const end = document.getElementById("endDate").value;
-  const type = document.getElementById("dustType").value;
-
-  if (!start || !end) {
-    alert("กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด");
-    return;
-  }
-
-  db.ref("iot_data").orderByKey().once("value").then(snapshot => {
-    let csv = "Timestamp," + type.toUpperCase() + "\n";
-
-    snapshot.forEach(child => {
-      const key = child.key;
-      const datePart = key.split("_")[0]; // เอาแค่ส่วนวันที่
-      const data = child.val();
-
-      if (datePart >= start && datePart <= end) {
-        const timestamp = data.timestamp || key;
-        const value = type === "pm10" ? data.pm10 : data.pm25;
-        csv += `${timestamp},${value}\n`;
-      }
-    });
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `history-${type}-${start}_to_${end}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  });
+  };
 }
 
+// ✅ Update All Charts
+function updateAllCharts() {
+  db.ref("iot_data").orderByKey().limitToLast(5).once("value").then(snapshot => {
+    const labels = [], pm25 = [], pm10 = [], temp = [], hum = [];
+    snapshot.forEach(child => {
+      const d = child.val();
+      labels.push(new Date(d.timestamp || child.key));
+      pm25.push(d.pm25);
+      pm10.push(d.pm10);
+      temp.push(d.temperature);
+      hum.push(d.humidity);
+    });
+    charts.pm25.data.labels = labels; charts.pm25.data.datasets[0].data = pm25; charts.pm25.update();
+    charts.pm10.data.labels = labels; charts.pm10.data.datasets[0].data = pm10; charts.pm10.update();
+    charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = temp; charts.temp.update();
+    charts.hum.data.labels = labels; charts.hum.data.datasets[0].data = hum; charts.hum.update();
 
-
-    const map = L.map('map').setView([13.731101956120513, 100.74035954845426], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-    L.marker([13.731101956120513, 100.74035954845426]).addTo(map)
-      .bindPopup('ตำแหน่งติดตั้งเครื่องวัดฝุ่น')
-      .openPopup();
-
-    // Add historical data popup to the map
-    function addPopupToMap(timestamp, pm25, pm10) {
-      L.marker([13.731101956120513, 100.74035954845426]).addTo(map)
-        .bindPopup(`วันที่: ${timestamp}<br>PM2.5: ${pm25} µg/m³<br>PM10: ${pm10} µg/m³`)
-        .openPopup();
+    if (labels.length > 0) {
+      document.getElementById('timeRange').textContent = `ข้อมูลล่าสุดช่วง: ${labels[0].toLocaleTimeString('th-TH')} - ${labels[labels.length-1].toLocaleTimeString('th-TH')}`;
     }
+  });
+}
+updateAllCharts();
 
-    updateChart();
-  </script>
+// ✅ Show History Modal
+function showHistory() {
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  const historyDiv = document.getElementById('historyData');
+  if (!startDate || !endDate) { alert('กรุณาเลือกวันที่'); return; }
+  historyDiv.innerHTML = '';
+
+  const startTimestamp = new Date(startDate).getTime();
+  const endTimestamp = new Date(endDate).getTime() + 86400000 - 1;
+
+  db.ref("iot_data").once("value").then(snapshot => {
+    let table = `<table><thead><tr><th>เวลา</th><th>PM2.5</th><th>PM10</th><th>อุณหภูมิ (°C)</th><th>ความชื้น (%)</th><th>ปั๊ม</th><th>สถานะอากาศ</th></tr></thead><tbody>`;
+    let found = false;
+    snapshot.forEach(child => {
+      const d = child.val();
+      const timestamp = d.timestamp ? new Date(d.timestamp).getTime() : Number(child.key);
+      if (timestamp >= startTimestamp && timestamp <= endTimestamp) {
+        found = true;
+        table += `<tr><td>${new Date(timestamp).toLocaleString('th-TH')}</td><td>${d.pm25}</td><td>${d.pm10}</td><td>${d.temperature}</td><td>${d.humidity}</td><td>${d.pump_status}</td><td>${d.air_status}</td></tr>`;
+      }
+    });
+    table += '</tbody></table>';
+    historyDiv.innerHTML = found ? table : 'ไม่พบข้อมูล';
+    document.getElementById('historyModal').style.display = 'flex';
+  });
+}
+function closeModal() { document.getElementById('historyModal').style.display = 'none'; }
+
+// ✅ Current Time
+function updateCurrentTime() {
+  const now = new Date();
+  document.getElementById('currentTime').textContent = `เวลาปัจจุบัน: ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+}
+setInterval(updateCurrentTime, 1000);
+updateCurrentTime();
+
+// ✅ Map
+const map = L.map('map').setView([13.7311, 100.7403], 17);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+L.marker([13.7311, 100.7403]).addTo(map).bindPopup('ตำแหน่งติดตั้งเครื่องวัดฝุ่น').openPopup();
+
+</script>
+
 </body>
 </html>
