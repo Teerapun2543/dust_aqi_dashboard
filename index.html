@@ -1,237 +1,682 @@
+<!--⬇️ เริ่มต้นโค้ดฉบับสมบูรณ์ -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>แดชบอร์ดตรวจวัดฝุ่นละออง</title>
-
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- jsPDF + AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+  <title>เครื่องวัดคุณภาพอากาศในโรงงานคอนกรีต</title>
   <style>
-    body { font-family: 'Arial', sans-serif; background: #f4f7fa; margin: 0; }
-    header { background: #005bbb; color: white; padding: 1rem; text-align: center; }
-    nav { background: #003d80; padding: 1rem; color: white; }
-    nav a { color: white; margin-right: 1rem; text-decoration: none; }
-    .container { padding: 2rem; }
-    .card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    .grid { display: flex; flex-wrap: wrap; gap: 1rem; }
-    .grid .card { flex: 1; min-width: 200px; }
-    #map { width: 80%; max-width: 600px; height: 300px; margin: 0 auto; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    canvas { width: 100% !important; height: 300px !important; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    table, th, td { border: 1px solid #ccc; }
-    th, td { padding: 8px; text-align: center; font-size: 14px; }
-    th { background: #e6f0ff; }
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f6f8;
+      color: #333;
+    }
+    header, footer {
+      background: #004d99;
+      color: white;
+      text-align: center;
+      padding: 10px 20px;
+    }
+    nav {
+      background: #007acc;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    nav a {
+      color: white;
+      padding: 15px 20px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      background: #005b99;
+    }
+    main {
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      margin-bottom: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .flex-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .flex-item {
+      flex: 1 1 200px;
+      background: #e6f0ff;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      color: #333;
+      transition: background-color 0.3s ease;
+    }
+    button {
+      background: #007acc;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #005b99;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      text-align: center;
+    }
+    .footer-info {
+      font-size: 14px;
+      margin-top: 5px;
+    }
+    #aqi-card {
+      transition: background-color 0.3s ease;
+      color: #000;
+    }
+    .card .value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-top: 10px;
+}
 
-    /* Modal Style */
-    #historyModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; }
-    #historyModalContent { background:white; padding:20px; border-radius:8px; max-width:90%; max-height:90%; overflow:auto; position:relative; }
-    #historyModalContent button { position:absolute; top:10px; right:10px; background:red; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; }
+.card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  color: #333;
+}
+
   </style>
 </head>
-
 <body>
+
   <header>
-    <h1>แดชบอร์ดเครื่องวัดฝุ่น - โรงงานผสมคอนกรีต</h1>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
+      <img src="images/logospu.png" alt="โลโก้มหาวิทยาลัย" style="height: 60px;" />
+  
+      <div>
+        <h1>เครื่องวัดคุณภาพอากาศในโรงงานคอนกรีต</h1>
+        <p>"วิเคราะห์อากาศ เพื่อสุขภาพที่ยั่งยืน"</p>
+      </div>
+    </div>
   </header>
 
-  <nav>
-    <a href="#realtime">ข้อมูล Real-Time</a>
-    <a href="#chart">กราฟ</a>
-    <a href="#history">ย้อนหลัง</a>
-    <a href="#map">แผนที่</a>
-  </nav>
+<nav>
+  <a href="#">หน้าหลัก</a>
+  <a href="#">ข้อมูลปัจจุบัน</a>
+  <a href="#">ข้อมูลย้อนหลัง</a>
+  <a href="#">แผนที่เซนเซอร์</a>
+  <a href="#">เกี่ยวกับโครงการ</a>
+  <a href="#">ติดต่อเรา</a>
+</nav>
 
-  <div class="container">
-
-    <!-- Section Realtime -->
-    <section id="realtime" class="grid">
-      <div class="card"><h3>ค่าฝุ่นละออง (PM2.5)</h3><div id="pmValue">--</div></div>
-      <div class="card"><h3>ค่าฝุ่นละออง (PM10)</h3><div id="pm10Value">--</div></div>
-      <div class="card"><h3>อุณหภูมิ</h3><div id="tempValue">--</div></div>
-      <div class="card"><h3>ความชื้น</h3><div id="humValue">--</div></div>
-      <div class="card"><h3>สถานะปั๊ม</h3><div id="pumpStatus">--</div></div>
-      <div class="card"><h3>ระดับอันตราย</h3><div id="dangerLevel">--</div></div>
-    </section>
-
-    <!-- Section Chart -->
-    <section id="chart" class="card" style="border: 2px solid #ccc;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3>กราฟแสดงค่าต่าง ๆ</h3>
-        <div style="display: flex; gap: 20px; align-items: center;">
-          <div id="timeRange" style="font-size: 14px; color: #555;"></div> 
-          <div id="currentTime" style="font-size: 14px; color: #555; border: 1px solid #ccc; padding: 5px 10px; border-radius: 6px;"></div> 
+<main>
+  <section class="card">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px;">
+      <div style="flex: 2; min-width: 280px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+          <div class="flex-item" id="pm25-box">🌫️ PM2.5: <span id="pm25-value">--</span></div>
+          <div class="flex-item" id="pm10-box">🌫️ PM10: <span id="pm10-value">--</span></div>
+          <div class="flex-item">🌡 Temp: <span id="temp-value">--</span></div>
+          <div class="flex-item">💧 Humidity: <span id="humidity-value">--</span></div>
+        </div>
+        <div class="flex-item" style="margin-top: 15px;">🛑 Status Pump: <span id="pump-status">--</span></div>
+      </div>
+      <div style="flex: 1; min-width: 220px;">
+        <div id="aqi-card" style="background: #fff3cd; border-radius: 12px; padding: 15px; color: #333; font-family: 'Arial', sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div id="aqi-value" style="font-size: 28px; font-weight: bold;">--</div>
+              <div style="font-size: 14px;">US AQI</div>
+            </div>
+            <div>
+              <div id="aqi-emoji" style="font-size: 36px;">😐</div>
+            </div>
+          </div>
+          <div id="aqi-level" style="font-size: 18px; margin: 8px 0;">--</div>
+          <div style="margin-top: 10px;"><strong>PM2.5:</strong> <span id="aqi-pm">--</span> µg/m³</div>
+          <div style="display: flex; justify-content: space-around; margin-top: 10px; font-size: 14px;">
+           
+          </div>
+        </div>
+        
+        <div style="text-align: right; margin-top: 10px;">
+          <button onclick="openHistoryModal()">📊 ดูข้อมูลย้อนหลัง</button>
         </div>
       </div>
-      <button onclick="downloadCSV()">📥 ดาวน์โหลด CSV (ล่าสุด)</button>
-      <button onclick="downloadPDF()">📥 ดาวน์โหลด PDF (ล่าสุด)</button>
-      <div style="display: flex; gap: 1rem; overflow-x: auto; margin-top: 1rem;">
-        <div style="flex: 1; min-width: 400px;"><canvas id="pm25Chart"></canvas></div>
-        <div style="flex: 1; min-width: 400px;"><canvas id="pm10Chart"></canvas></div>
-        <div style="flex: 1; min-width: 400px;"><canvas id="tempChart"></canvas></div>
-        <div style="flex: 1; min-width: 400px;"><canvas id="humChart"></canvas></div>
-      </div>
-    </section>
-
-    <!-- Section History -->
-    <section id="history" class="card">
-      <h3>ดูข้อมูลย้อนหลัง</h3>
-      <label>วันที่เริ่มต้น:</label>
-      <input type="date" id="startDate">
-      <label>วันที่สิ้นสุด:</label>
-      <input type="date" id="endDate">
-      <br><br>
-      <button onclick="showHistory()">📄 แสดงข้อมูลย้อนหลัง</button>
-      <button onclick="downloadHistoryCSV()">📥 ดาวน์โหลดข้อมูลย้อนหลัง (CSV)</button>
-    </section>
-
-    <!-- Section Map -->
-    <section id="map" class="card">
-      <h3>แผนที่ติดตั้งเครื่อง</h3>
-      <div id="map"></div>
-    </section>
-
-  </div>
-
-  <!-- Modal Popup -->
-  <div id="historyModal">
-    <div id="historyModalContent">
-      <button onclick="closeModal()">X</button>
-      <h3>ข้อมูลย้อนหลัง</h3>
-      <div id="historyData"></div>
     </div>
+    
+  </section>
+<!-- Summary -->
+<!-- 🔄 สรุปสถิติคุณภาพอากาศแบบใหม่ -->
+<section class="card">
+  <h2 style="display: flex; align-items: center; gap: 10px; font-size: 1.5em; margin-bottom: 20px;">
+    <span style="font-size: 1.4em;">📊</span> 
+    <span>สรุปสถิติคุณภาพอากาศ (24 ชั่วโมง)</span>
+  </h2>
+
+  <div class="dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
+    <div class="card"><h3>🌫 ค่าเฉลี่ย PM2.5</h3><div class="value">42 µg/m³</div></div>
+    <div class="card"><h3>🌫 ค่าเฉลี่ย PM10</h3><div class="value">87 µg/m³</div></div>
+    <div class="card"><h3>🌡 อุณหภูมิเฉลี่ย</h3><div class="value">30°C</div></div>
+    <div class="card"><h3>💧 ความชื้นสัมพัทธ์</h3><div class="value">58%</div></div>
+    <div class="card"><h3>🔺 PM2.5 สูงสุด</h3><div class="value">78 µg/m³<br><small>(14:00 น.)</small></div></div>
+    <div class="card"><h3>🔻 PM2.5 ต่ำสุด</h3><div class="value">22 µg/m³<br><small>(04:00 น.)</small></div></div>
   </div>
 
-<script>
-// 🔥 Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
-  authDomain: "air-quality-monitor-80a0c.firebaseapp.com",
-  databaseURL: "https://air-quality-monitor-80a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "air-quality-monitor-80a0c",
-  storageBucket: "air-quality-monitor-80a0c.appspot.com",
-  messagingSenderId: "625949588545",
-  appId: "1:625949588545:web:479e4636bf048615e19ac0"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  <div class="alert-bar" style="margin-top: 20px; padding: 10px; background: #f39c12; color: white; font-weight: bold; text-align: center; border-radius: 8px;">
+    🟥 เกินค่ามาตรฐาน PM2.5: 5 ครั้ง | PM10: 3 ครั้ง
+  </div>
 
-// ✅ Real-time Update
-db.ref("iot_data").orderByKey().limitToLast(1).on("value", snapshot => {
-  snapshot.forEach(child => {
-    const data = child.val();
-    document.getElementById("pmValue").textContent = data.pm25 + " µg/m³";
-    document.getElementById("pm10Value").textContent = data.pm10 + " µg/m³";
-    document.getElementById("tempValue").textContent = data.temperature + " °C";
-    document.getElementById("humValue").textContent = data.humidity + " %";
-    document.getElementById("pumpStatus").textContent = data.pump_status;
-    document.getElementById("dangerLevel").textContent = data.air_status || "Unknown";
+  <div class="footer" style="margin-top: 10px; text-align: center; font-size: 0.95rem; color: #555;">
+    📅 วันที่: 26–27 เมษายน 2025
+  </div>
+</section>
+
+
+<!-- ✅ ส่วนแสดงกราฟย้อนหลัง -->
+<section class="card chart">
+<h2>📊 กราฟแนวโน้มย้อนหลัง</h2>
+<div>
+  <button>1 ชั่วโมง</button>
+  <button>6 ชั่วโมง</button>
+  <button>24 ชั่วโมง</button>
+  <button>7 วัน</button>
+</div>
+
+<!-- 📅 Date Picker -->
+<div style="margin: 10px 0;">
+  <label for="datePicker">เลือกวันที่ 📅</label>
+  <input type="date" id="datePicker" style="padding: 5px;" />
+</div>
+
+<!-- 📥 เมนูดาวน์โหลด -->
+<div style="margin-bottom: 10px;">
+  <label for="downloadSelect"><strong>📥 ดาวน์โหลดข้อมูลย้อนหลัง:</strong></label>
+  <select id="downloadSelect" style="margin-left:10px; padding:5px;">
+    <option value="">-- เลือกประเภทไฟล์ --</option>
+    <option value="csv">CSV 📊</option>
+    <option value="pdf">PDF 📄</option>
+  </select>
+  
+</div>
+
+<canvas id="historyChart" style="max-height:300px; width:100%; background:white; border-radius:10px;"></canvas>
+</section>
+
+
+
+<!-- แผนที่เซนเซอร์ -->
+<section class="card sensor-map">
+<h2>🗺 แผนที่ตำแหน่งเซนเซอร์</h2>
+<div style="height: 300px; border-radius: 10px; overflow: hidden;">
+  <iframe
+    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3875.790726255974!2d100.73778127485552!3d13.731116286658619!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x311d6705010b8dc5%3A0x69accc2f9c92dd0!2z4LmB4Lie4Lil4LmJ4LiZ4LiX4LmM4Lil4Liy4LiU4LiB4Lij4Liw4Lia4Lix4LiHIEFDUA!5e0!3m2!1sen!2sth!4v1745937370950!5m2!1sen!2sth"
+    width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade">
+  </iframe>
+</div>
+<div style="margin-top: 10px;">
+  <a href="https://maps.app.goo.gl/JKTyXNTdbFWQvKTu7" target="_blank">
+    <button>เปิดใน Google Maps 📍</button>
+  </a>
+</div>
+</section>
+
+ <!-- ตาราง AQI -->
+ <section class="aqi-status">
+  <h2>📋 ตารางมาตรฐาน AQI</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>AQI</th><th>PM2.5 (µg/m³)</th><th>PM10 (µg/m³)</th><th>ผลกระทบต่อสุขภาพ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>0-25 🟦</td><td>0-25</td><td>0-50</td><td>คุณภาพอากาศดีมาก</td></tr>
+      <tr><td>26-50 🟩</td><td>26-37</td><td>51-80</td><td>คุณภาพอากาศดี</td></tr>
+      <tr><td>51-100 🟨</td><td>38-50</td><td>81-120</td><td>มีผลต่อสุขภาพเล็กน้อย</td></tr>
+      <tr><td>101-200 🟧</td><td>51-90</td><td>121-180</td><td>เริ่มมีผลต่อสุขภาพ</td></tr>
+      <tr><td>>200 🟥</td><td>91+</td><td>181+</td><td>อันตรายต่อสุขภาพ</td></tr>
+    </tbody>
+  </table>
+</section>
+<!-- 🔽 Modal แสดงข้อมูลย้อนหลัง -->
+<div id="historyModal" style="
+  display:none;
+  position: fixed;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 800px;
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.25);
+  z-index: 9999;
+  overflow-y: auto;
+  max-height: 80vh;
+">
+  <h2>ข้อมูลย้อนหลัง</h2>
+  <div style="margin-bottom: 10px;">
+    <label for="modalDatePicker">เลือกวันที่: </label>
+    <input type="date" id="modalDatePicker" />
+  </div>
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>เวลา</th><th>PM2.5</th><th>PM10</th><th>อุณหภูมิ (°C)</th><th>ความชื้น (%)</th><th>ปั๊ม</th><th>สถานะอากาศ</th>
+      </tr>
+    </thead>
+    <tbody id="historyTableBody">
+      <!-- 🧾 ข้อมูลจะถูกเติมด้วย JS -->
+    </tbody>
+  </table>
+  <div style="text-align: right; margin-top: 10px;">
+    <button onclick="document.getElementById('historyModal').style.display='none'">❌ ปิด</button>
+  </div>
+</div>
+
+
+
+
+</main>
+
+<footer>
+  <p>ปีการศึกษา 2025</p>
+  <div class="footer-info">จัดทำโดย: นายโอห์ม ตัวอย่าง | อาจารย์ที่ปรึกษา: ผศ.ดร.สุภาพตัวอย่าง</div>
+</footer>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+  import { get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
+    authDomain: "air-quality-monitor-80a0c.firebaseapp.com",
+    databaseURL: "https://air-quality-monitor-80a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "air-quality-monitor-80a0c",
+    storageBucket: "air-quality-monitor-80a0c.appspot.com",
+    messagingSenderId: "625949588545",
+    appId: "1:625949588545:web:479e4636bf048615e19ac0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dataRef = ref(db, 'iot_data');
+
+  onValue(dataRef, (snapshot) => {
+    const dataAll = snapshot.val();
+    if (!dataAll) return;
+
+    let latestData = null;
+    let latestTime = 0;
+
+    Object.values(dataAll).forEach((entry) => {
+      const ts = new Date(entry.timestamp).getTime();
+      if (!isNaN(ts) && ts > latestTime) {
+        latestTime = ts;
+        latestData = entry;
+      }
+    });
+
+    if (!latestData) return;
+
+    const pm25 = parseFloat(latestData.pm25);
+    const pm10 = parseFloat(latestData.pm10);
+
+    displayValue('pm25-value', pm25, ' µg/m³');
+    displayValue('pm10-value', pm10, ' µg/m³');
+    displayValue('temp-value', latestData.temperature, '°C');
+    displayValue('humidity-value', latestData.humidity, '%');
+    displayValue('pump-status', latestData.pump_status);
+
+    const aqi = getAQILevelAndColor(pm25);
+    displayValue('aqi-value', aqi.aqi);
+    displayValue('aqi-level', aqi.level);
+    displayValue('aqi-emoji', aqi.emoji);
+    displayValue('aqi-pm', pm25.toFixed(1));
+
+    const card = document.getElementById('aqi-card');
+    if (card) card.style.backgroundColor = aqi.color;
+  });
+
+  function displayValue(id, value, unit = '') {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value !== undefined ? value + unit : '--';
+
+  // ถ้าค่าที่แสดงคือ temp/humidity และมี mini ให้อัปเดตด้วย
+  if (id === 'temp-value' && document.getElementById('temp-value-mini')) {
+    document.getElementById('temp-value-mini').innerText = value !== undefined ? value : '--';
+  }
+  if (id === 'humidity-value' && document.getElementById('humidity-value-mini')) {
+    document.getElementById('humidity-value-mini').innerText = value !== undefined ? value : '--';
+  }
+}
+
+
+
+  function getAQILevelAndColor(pm25) {
+    if (pm25 <= 25) return { aqi: 25, level: 'ดีมาก', color: '#3f87ff', emoji: '😃' };
+    if (pm25 <= 37) return { aqi: 40, level: 'ดี', color: '#28a745', emoji: '🙂' };
+    if (pm25 <= 50) return { aqi: 65, level: 'ปานกลาง', color: '#ffc107', emoji: '😐' };
+    if (pm25 <= 90) return { aqi: 120, level: 'เริ่มมีผลต่อสุขภาพ', color: '#fd7e14', emoji: '😷' };
+    return { aqi: 180, level: 'อันตราย', color: '#dc3545', emoji: '🤢' };
+  }
+  function getPM25Background(value) {
+    if (value <= 25) return '#cce5ff';
+    if (value <= 37) return '#d4edda';
+    if (value <= 50) return '#fff3cd';
+    if (value <= 90) return '#ffe5b4';
+    return '#f8d7da';
+  }
+
+  function getPM10Background(value) {
+    if (value <= 50) return '#cce5ff';
+    if (value <= 80) return '#d4edda';
+    if (value <= 120) return '#fff3cd';
+    if (value <= 180) return '#ffe5b4';
+    return '#f8d7da';
+  }
+
+  // ----- ส่วนกราฟย้อนหลัง -----
+  let historyChart;
+
+  function createChart(labels, pm25Data, pm10Data) {
+    const ctx = document.getElementById('historyChart').getContext('2d');
+    if (historyChart) historyChart.destroy();
+
+    historyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'PM2.5 (µg/m³)',
+            data: pm25Data,
+            borderColor: '#ff6384',
+            backgroundColor: 'rgba(255,99,132,0.1)',
+            tension: 0.2
+          },
+          {
+            label: 'PM10 (µg/m³)',
+            data: pm10Data,
+            borderColor: '#36a2eb',
+            backgroundColor: 'rgba(54,162,235,0.1)',
+            tension: 0.2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'เวลา' } },
+          y: { title: { display: true, text: 'µg/m³' } }
+        }
+      }
+    });
+  }
+
+  function loadHistoryData(hours = 24) {
+    const now = Date.now();
+    const startTime = now - (hours * 60 * 60 * 1000);
+
+    get(dataRef).then(snapshot => {
+      const rawData = snapshot.val();
+      const labels = [], pm25Data = [], pm10Data = [];
+
+      Object.entries(rawData).forEach(([key, val]) => {
+        const ts = new Date(val.timestamp).getTime();
+        if (!isNaN(ts) && ts >= startTime) {
+          const label = new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+          labels.push(label);
+          pm25Data.push(parseFloat(val.pm25));
+          pm10Data.push(parseFloat(val.pm10));
+        }
+      });
+
+      if (labels.length === 0) {
+        labels.push("ไม่มีข้อมูล");
+        pm25Data.push(null);
+        pm10Data.push(null);
+      }
+
+      createChart(labels, pm25Data, pm10Data);
+    });
+  }
+
+  window.addEventListener('load', () => {
+    loadHistoryData(24);
+  });
+
+  document.querySelectorAll('.chart button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const txt = btn.innerText;
+      if (txt.includes('1 ชั่วโมง')) loadHistoryData(1);
+      else if (txt.includes('6 ชั่วโมง')) loadHistoryData(6);
+      else if (txt.includes('24 ชั่วโมง')) loadHistoryData(24);
+      else if (txt.includes('7 วัน')) loadHistoryData(24 * 7);
+    });
+  });
+
+  // 📅 เลือกวันที่แล้วโหลดกราฟ
+document.getElementById('datePicker').addEventListener('change', (e) => {
+  const selectedDate = new Date(e.target.value);
+  if (isNaN(selectedDate.getTime())) return;
+
+  const start = new Date(selectedDate.setHours(0, 0, 0, 0)).getTime();
+  const end = new Date(selectedDate.setHours(23, 59, 59, 999)).getTime();
+
+  get(dataRef).then(snapshot => {
+    const rawData = snapshot.val();
+    const labels = [], pm25Data = [], pm10Data = [];
+
+    Object.values(rawData).forEach(val => {
+      const ts = new Date(val.timestamp).getTime();
+      if (!isNaN(ts) && ts >= start && ts <= end) {
+        labels.push(new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+        pm25Data.push(parseFloat(val.pm25));
+        pm10Data.push(parseFloat(val.pm10));
+      }
+    });
+
+    if (labels.length === 0) {
+      labels.push("ไม่มีข้อมูล");
+      pm25Data.push(null);
+      pm10Data.push(null);
+    }
+
+    createChart(labels, pm25Data, pm10Data);
   });
 });
 
-// ✅ Chart.js
-const charts = {
-  pm25: new Chart(document.getElementById('pm25Chart').getContext('2d'), createChartConfig("PM2.5", 'rgba(0,123,255,1)')),
-  pm10: new Chart(document.getElementById('pm10Chart').getContext('2d'), createChartConfig("PM10", 'rgba(255,165,0,1)')),
-  temp: new Chart(document.getElementById('tempChart').getContext('2d'), createChartConfig("Temperature (°C)", 'rgba(255,99,132,1)')),
-  hum: new Chart(document.getElementById('humChart').getContext('2d'), createChartConfig("Humidity (%)", 'rgba(75,192,192,1)')),
+// 📥 เมนูดาวน์โหลด CSV/Excel
+function handleDownload(type) {
+  if (!historyChart) return alert("ยังไม่มีข้อมูลให้ดาวน์โหลด");
+
+  const labels = historyChart.data.labels;
+  const pm25Data = historyChart.data.datasets[0].data;
+  const pm10Data = historyChart.data.datasets[1].data;
+
+  if (type === 'csv') {
+    let csv = "เวลา,PM2.5,PM10\n";
+    for (let i = 0; i < labels.length; i++) {
+      csv += `${labels[i]},${pm25Data[i] ?? ""},${pm10Data[i] ?? ""}\n`;
+    }
+
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "aqi_data.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  if (type === 'pdf') {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const margin = 10;
+    let y = 15;
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+
+    pdf.setFont("THSarabun", "normal"); // ใช้ฟอนต์ภาษาไทยถ้ามีฝังไว้
+    pdf.setFontSize(16);
+    pdf.text("รายงานคุณภาพอากาศย้อนหลัง", pageWidth / 2, y, { align: "center" });
+    y += 10;
+
+    pdf.setFontSize(12);
+    const today = new Date().toLocaleDateString('th-TH');
+    pdf.text(`วันที่จัดทำรายงาน: ${today}`, margin, y); y += 8;
+    pdf.text("สถานที่วัด: โรงงานคอนกรีต XYZ", margin, y); y += 10;
+
+    pdf.setFontSize(14);
+    pdf.text("1. สถิติโดยรวม", margin, y); y += 8;
+    pdf.setFontSize(12);
+    pdf.text("- ค่าเฉลี่ย PM2.5: 42 µg/m³", margin, y); y += 6;
+    pdf.text("- ค่าเฉลี่ย PM10: 87 µg/m³", margin, y); y += 6;
+    pdf.text("- อุณหภูมิเฉลี่ย: 30°C", margin, y); y += 6;
+    pdf.text("- ความชื้นสัมพัทธ์เฉลี่ย: 58%", margin, y); y += 10;
+
+    pdf.setFontSize(14);
+    pdf.text("2. วิเคราะห์แนวโน้ม", margin, y); y += 8;
+    pdf.setFontSize(12);
+    pdf.text("- PM2.5 เพิ่มขึ้นในช่วงกลางวันและช่วงเร่งงาน", margin, y); y += 6;
+    pdf.text("- PM10 มีแนวโน้มลดลงในช่วงกลางคืน", margin, y); y += 10;
+
+    // 🔹 แทรกรูปกราฟจาก canvas
+    html2canvas(document.getElementById('historyChart')).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = imgWidth * (canvas.height / canvas.width);
+
+      if (y + imgHeight > 280) {
+        pdf.addPage();
+        y = 15;
+      }
+
+      pdf.setFontSize(14);
+      pdf.text("3. กราฟแสดงค่าฝุ่นย้อนหลัง", margin, y);
+      y += 5;
+
+      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight);
+      y += imgHeight + 10;
+
+      // 🔸 ข้อเสนอแนะ
+      if (y > 250) {
+        pdf.addPage();
+        y = 15;
+      }
+
+      pdf.setFontSize(14);
+      pdf.text("4. ข้อเสนอแนะเบื้องต้น", margin, y); y += 8;
+      pdf.setFontSize(12);
+      pdf.text("- ติดตั้งระบบเตือนอัตโนมัติเมื่อ PM2.5 เกิน 50 µg/m³", margin, y); y += 6;
+      pdf.text("- เปิดระบบกรองอากาศช่วงบ่ายเมื่อค่าฝุ่นสูง", margin, y); y += 10;
+
+      // 🔚 บันทึก
+      pdf.save("air_quality_report.pdf");
+    });
+  }
+
+  document.getElementById("downloadSelect").value = "";
+}
+
+
+// 📥 เชื่อมเมนูดาวน์โหลดกับฟังก์ชัน handleDownload
+document.getElementById('downloadSelect').addEventListener('change', function () {
+  const fileType = this.value;
+  if (fileType) {
+    handleDownload(fileType);
+  }
+});
+window.openHistoryModal = function () {
+  document.getElementById('historyModal').style.display = 'block';
+  const today = new Date().toISOString().split("T")[0];
+  document.getElementById('modalDatePicker').value = today;
+  loadHistoryTable(today);
 };
 
-function createChartConfig(label, borderColor) {
-  return {
-    type: 'line',
-    data: { labels: [], datasets: [{ label, data: [], backgroundColor: borderColor.replace('1)', '0.2)'), borderColor, borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 }] },
-    options: {
-      responsive: true,
-      scales: {
-        x: { type: 'time', time: { unit: 'minute', tooltipFormat: 'HH:mm', displayFormats: { minute: 'HH:mm' } }, title: { display: true, text: 'เวลา' }, ticks: { autoSkip: true, maxTicksLimit: 6 }},
-        y: { beginAtZero: true, title: { display: true, text: label }}
-      }
-    }
-  };
-}
 
-// ✅ Update All Charts
-function updateAllCharts() {
-  db.ref("iot_data").orderByKey().limitToLast(5).once("value").then(snapshot => {
-    const labels = [], pm25 = [], pm10 = [], temp = [], hum = [];
-    snapshot.forEach(child => {
-      const d = child.val();
-      labels.push(new Date(d.timestamp || child.key));
-      pm25.push(d.pm25);
-      pm10.push(d.pm10);
-      temp.push(d.temperature);
-      hum.push(d.humidity);
-    });
-    charts.pm25.data.labels = labels; charts.pm25.data.datasets[0].data = pm25; charts.pm25.update();
-    charts.pm10.data.labels = labels; charts.pm10.data.datasets[0].data = pm10; charts.pm10.update();
-    charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = temp; charts.temp.update();
-    charts.hum.data.labels = labels; charts.hum.data.datasets[0].data = hum; charts.hum.update();
+document.getElementById('modalDatePicker').addEventListener('change', function () {
+  loadHistoryTable(this.value);
+});
 
-    if (labels.length > 0) {
-      document.getElementById('timeRange').textContent = `ข้อมูลล่าสุดช่วง: ${labels[0].toLocaleTimeString('th-TH')} - ${labels[labels.length-1].toLocaleTimeString('th-TH')}`;
-    }
-  });
-}
-updateAllCharts();
+function loadHistoryTable(dateStr) {
+  if (!dateStr) return;
+  const selectedDate = new Date(dateStr);
+  const start = new Date(selectedDate.setHours(0, 0, 0, 0)).getTime();
+  const end = new Date(selectedDate.setHours(23, 59, 59, 999)).getTime();
 
-// ✅ Show History Modal
-function showHistory() {
-  const startDate = document.getElementById('startDate').value;
-  const endDate = document.getElementById('endDate').value;
-  const historyDiv = document.getElementById('historyData');
-  if (!startDate || !endDate) { alert('กรุณาเลือกวันที่'); return; }
-  historyDiv.innerHTML = '';
+  get(dataRef).then(snapshot => {
+    const data = snapshot.val();
+    const tbody = document.getElementById('historyTableBody');
+    tbody.innerHTML = "";
 
-  const startTimestamp = new Date(startDate).getTime();
-  const endTimestamp = new Date(endDate).getTime() + 86400000 - 1;
+    const rows = [];
 
-  db.ref("iot_data").once("value").then(snapshot => {
-    let table = `<table><thead><tr><th>เวลา</th><th>PM2.5</th><th>PM10</th><th>อุณหภูมิ (°C)</th><th>ความชื้น (%)</th><th>ปั๊ม</th><th>สถานะอากาศ</th></tr></thead><tbody>`;
-    let found = false;
-    snapshot.forEach(child => {
-      const d = child.val();
-      const timestamp = d.timestamp ? new Date(d.timestamp).getTime() : Number(child.key);
-      if (timestamp >= startTimestamp && timestamp <= endTimestamp) {
-        found = true;
-        table += `<tr><td>${new Date(timestamp).toLocaleString('th-TH')}</td><td>${d.pm25}</td><td>${d.pm10}</td><td>${d.temperature}</td><td>${d.humidity}</td><td>${d.pump_status}</td><td>${d.air_status}</td></tr>`;
+    Object.values(data).forEach(entry => {
+      const ts = new Date(entry.timestamp).getTime();
+      if (ts >= start && ts <= end) {
+        rows.push(`
+          <tr>
+            <td>${new Date(ts).toLocaleTimeString('th-TH')}</td>
+            <td>${entry.pm25 ?? '--'}</td>
+            <td>${entry.pm10 ?? '--'}</td>
+            <td>${entry.temperature ?? 'undefined'}</td>
+            <td>${entry.humidity ?? 'undefined'}</td>
+            <td>${entry.pump_status ?? '--'}</td>
+            <td>${getAQILevel(entry.pm25)}</td>
+          </tr>
+        `);
       }
     });
-    table += '</tbody></table>';
-    historyDiv.innerHTML = found ? table : 'ไม่พบข้อมูล';
-    document.getElementById('historyModal').style.display = 'flex';
+
+    tbody.innerHTML = rows.length > 0 ? rows.join("") : `<tr><td colspan="7">ไม่พบข้อมูลในวันนี้</td></tr>`;
   });
 }
-function closeModal() { document.getElementById('historyModal').style.display = 'none'; }
 
-// ✅ Current Time
-function updateCurrentTime() {
-  const now = new Date();
-  document.getElementById('currentTime').textContent = `เวลาปัจจุบัน: ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+function getAQILevel(pm25) {
+  const val = parseFloat(pm25);
+  if (val <= 25) return 'ดีมาก';
+  if (val <= 37) return 'ดี';
+  if (val <= 50) return 'ปานกลาง';
+  if (val <= 90) return 'เริ่มมีผล';
+  return 'อันตราย';
 }
-setInterval(updateCurrentTime, 1000);
-updateCurrentTime();
 
-// ✅ Map
-const map = L.map('map').setView([13.7311, 100.7403], 17);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-L.marker([13.7311, 100.7403]).addTo(map).bindPopup('ตำแหน่งติดตั้งเครื่องวัดฝุ่น').openPopup();
 
 </script>
 
 </body>
 </html>
+<!-- ⬆️ จบโค้ดฉบับสมบูรณ์ -->
