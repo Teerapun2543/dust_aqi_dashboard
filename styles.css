@@ -1,5 +1,5 @@
 body {
-  font-family: 'Arial', sans-serif;
+  font-family: 'Sarabun', sans-serif;
   margin: 0;
   padding: 0;
   background: #f4f6f8;
@@ -206,4 +206,55 @@ td {
   z-index: 10;
   font-weight: bold;
 }
+.web-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #dc3545;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-size: 16px;
+  font-weight: bold;
+  white-space: pre-line;
+  z-index: 9999;
+  min-width: 260px;
+}
+
+.web-alert .close-btn {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.dropdown-menu {
+  min-width: 300px;
+  right: 0;
+  transform: translateX(-60px); /* ขยับไปทางซ้าย */
+  padding: 15px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.dropdown-menu {
+  min-width: 340px;       /* เพิ่มความกว้างพื้นฐาน */
+  width: max-content;     /* ให้ขยายตามเนื้อหาภายใน */
+  padding: 15px;
+  font-size: 15px;
+  line-height: 1.6;
+  font-family: 'Sarabun', sans-serif;
+  white-space: normal;    /* ให้ขึ้นบรรทัดใหม่ได้ */
+  word-break: break-word; /* ตัดคำหากยาวเกิน */
+}
+
+
+
+
 
