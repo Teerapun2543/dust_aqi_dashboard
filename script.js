@@ -2,7 +2,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
   import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
   import { get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-
+  import { set } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
   
   const firebaseConfig = {
     apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
@@ -16,6 +16,33 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const dataRef = ref(db, 'iot_data');
+
+  let userId = null; // สมมุติว่ามีระบบผู้ใช้
+  let userNotifyWeb = true;
+  let thresholdPM25 = 50;
+  let thresholdPM10 = 100;
+
+  function loadUserNotificationSetting() {
+    const userRef = ref(db, `users/${userId}`);
+    return get(userRef).then(snapshot => {
+      if (snapshot.exists()) {
+        const prefs = snapshot.val();
+        userNotifyWeb = !!prefs.notify_web;
+        thresholdPM25 = prefs.threshold_pm25 || 50;
+        thresholdPM10 = prefs.threshold_pm10 || 100;
+  
+        // เติมค่าใน UI
+        document.getElementById('enable-web-alert').checked = userNotifyWeb;
+        document.getElementById('pm25-threshold').value = thresholdPM25;
+        document.getElementById('pm10-threshold').value = thresholdPM10;
+      }
+    });
+  }
+  
+  
+
+// เรียกโหลดค่า notify_web ก่อน แล้วค่อยเริ่มอ่านข้อมูล iot_data
+loadUserNotificationSetting().then(() => {
   onValue(dataRef, (snapshot) => {
     const dataAll = snapshot.val();
     if (!dataAll) return;
@@ -35,23 +62,42 @@
   
     const pm25 = parseFloat(latestData.pm25);
     const pm10 = parseFloat(latestData.pm10);
+  
+    // ✅ โหลดค่าที่ผู้ใช้ตั้งไว้ (อ่านจาก input)
+    const userPM25 = parseFloat(document.getElementById("pm25-threshold").value);
+    const userPM10 = parseFloat(document.getElementById("pm10-threshold").value);
+    const emailEnabled = document.getElementById("enable-email-alert").checked;
+    const userEmail = document.getElementById("email-address").value.trim();
+  
+    const isOverThreshold = pm25 > userPM25 || pm10 > userPM10;
+  
+    if (isOverThreshold) {
+      showWebAlert(pm25, pm10); // ✅ แจ้งเตือนบนเว็บ
+  
+      // ✅ ส่งอีเมลเมื่อเปิดใช้งาน
+      if (emailEnabled && userEmail) {
+        sendEmailAlert(pm25, pm10, userEmail);
+      }
+    }
+
     const temperature = parseFloat(latestData.temperature);
     const humidity = parseFloat(latestData.humidity);
     const pumpStatus = latestData.pump_status; 
     const updateTime = new Date(latestData.timestamp).toLocaleTimeString('th-TH', {
       hour: '2-digit',
       minute: '2-digit'
+
+      
     });
+
     displayValue('last-updated', updateTime);
     displayValue('sensor-status', 'เชื่อมต่อปกติ');
-    displayValue('aqi-pm', pm25); // อัปเดต PM2.5 ด้านล่าง AQI ด้วย
-    // อัปเดตค่าใน Gauge
+    displayValue('aqi-pm', pm25);
     pm25Gauge.refresh(pm25);
     pm10Gauge.refresh(pm10);
     tempGauge.refresh(temperature);
     humidityGauge.refresh(humidity);
-  
-    // Update AQI and other data as needed
+
     const aqi = getAQILevelAndColor(pm25);
     displayValue('aqi-value', aqi.aqi);
     displayValue('aqi-level', aqi.level);
@@ -59,7 +105,16 @@
     displayValue('pump-status', pumpStatus);
     document.getElementById('aqi-card').style.backgroundColor = aqi.bgColor;
 
+    // ✅ ย้ายมาไว้ตรงนี้
+    if (userNotifyWeb && (pm25 > thresholdPM25 || pm10 > thresholdPM10)) {
+      console.log("🚨 แจ้งเตือนแล้ว:", pm25, pm10);
+      showWebAlert(pm25, pm10);
+    }
+    
+    
   });
+});
+
   function displayValue(id, value, unit = '') {
   const el = document.getElementById(id);
   if (el) el.innerText = value !== undefined ? value + unit : '--';
@@ -513,6 +568,8 @@ function fetchLatestData() {
     });
   });
 }
+
+
 function loadSummaryStats() {
   const now = Date.now();
   const startTime = now - 24 * 60 * 60 * 1000; // 24 ชั่วโมงย้อนหลัง
@@ -658,6 +715,112 @@ function downloadEngineeringPDFReport() {
   });
 }
 
+function showWebAlert(pm25, pm10) {
+  const existing = document.querySelector('.web-alert');
+  if (existing) existing.remove(); // ลบ popup เดิมก่อน
+
+  const msg = `⚠️ แจ้งเตือนคุณภาพอากาศ\nPM2.5: ${pm25} µg/m³\nPM10: ${pm10} µg/m³`;
+
+  const alertDiv = document.createElement("div");
+  alertDiv.className = "web-alert";
+
+  const closeBtn = document.createElement("span");
+  closeBtn.innerHTML = "&times;";
+  closeBtn.className = "close-btn";
+  closeBtn.onclick = () => alertDiv.remove();
+
+  const msgContent = document.createElement("div");
+  msgContent.innerText = msg;
+
+  alertDiv.appendChild(closeBtn);
+  alertDiv.appendChild(msgContent);
+  document.body.appendChild(alertDiv);
+}
+
+
+function saveNotificationSettings() {
+  const userId = firebase.auth().currentUser.uid;
+  const pm25Threshold = parseInt(document.getElementById("pm25-threshold").value);
+  const pm10Threshold = parseInt(document.getElementById("pm10-threshold").value);
+  const enableWeb = document.getElementById("enable-web-alert").checked;
+  const enableLine = document.getElementById("enable-line-alert").checked;
+  const enableEmail = document.getElementById("enable-email-alert").checked;
+  const lineToken = document.getElementById("line-token").value.trim();
+  const email = document.getElementById("email-address").value.trim();
+
+  firebase.database().ref(`userSettings/${userId}`).set({
+    pm25Threshold,
+    pm10Threshold,
+    enableWeb,
+    enableLine,
+    enableEmail,
+    lineToken,
+    email
+  }).then(() => {
+    alert("✅ บันทึกการตั้งค่าเรียบร้อยแล้ว");
+    closeSettingsModal();
+  });
+}
+function checkAndNotify(data) {
+  const userId = firebase.auth().currentUser.uid;
+  firebase.database().ref(`userSettings/${userId}`).once('value').then(snapshot => {
+    const settings = snapshot.val();
+    if (!settings) return;
+
+    const { pm25, pm10 } = data;
+    const alerts = [];
+
+    if (settings.enableWeb && pm25 > settings.pm25Threshold) {
+      alerts.push(`⚠️ PM2.5 เกินเกณฑ์: ${pm25} µg/m³`);
+    }
+    if (settings.enableWeb && pm10 > settings.pm10Threshold) {
+      alerts.push(`⚠️ PM10 เกินเกณฑ์: ${pm10} µg/m³`);
+    }
+
+    if (settings.enableEmail && pm25 > settings.pm25Threshold) {
+      sendEmailAlert(pm25, pm10, settings.email);
+    }
+  
+    if (alerts.length > 0) {
+      alert(alerts.join('\n'));
+    }
+
+    // เขียนลง path Firebase เพื่อให้ Cloud Function ส่ง LINE/Email
+    if ((settings.enableLine || settings.enableEmail) && (pm25 > settings.pm25Threshold || pm10 > settings.pm10Threshold)) {
+      firebase.database().ref(`alerts`).push({
+        userId,
+        timestamp: new Date().toISOString(),
+        pm25,
+        pm10,
+        lineToken: settings.lineToken,
+        email: settings.email,
+        notifyLine: settings.enableLine,
+        notifyEmail: settings.enableEmail
+      });
+    }
+  });
+}
+function sendEmailAlert(pm25, pm10, toEmail) {
+  const timestamp = new Date().toLocaleString("th-TH");
+
+  const params = {
+    to_email: toEmail,
+    pm25_value: pm25.toFixed(1),
+    pm10_value: pm10.toFixed(1),
+    timestamp: timestamp
+  };
+
+  emailjs.send("service_0utswtt", "template_e3kjvgo", params)
+    .then(() => {
+      console.log("✅ ส่งอีเมลสำเร็จถึง", toEmail);
+    }, (error) => {
+      console.error("❌ ส่งอีเมลล้มเหลว:", error);
+    });
+}
+
+
+
+
 // ✅ สำคัญ: ให้ฟังก์ชันนี้ถูกเรียกได้จาก HTML
 window.downloadEngineeringPDFReport = downloadEngineeringPDFReport;
 
@@ -665,6 +828,81 @@ window.downloadEngineeringPDFReport = downloadEngineeringPDFReport;
 // เรียกใช้ฟังก์ชันทุกๆ 5 วินาทีเพื่ออัปเดตข้อมูล
 setInterval(fetchLatestData, 5000);
 // เรียกใช้ฟังก์ชันทันทีที่หน้าโหลด
-window.onload = fetchLatestData;
-loadSummaryStats();
-countExceedances();
+window.onload = () => {
+  loadUserNotificationSetting().then(() => {
+    fetchLatestData();
+    loadSummaryStats();
+    countExceedances();
+  });
+};
+
+
+
+// ✅ ทำให้ฟังก์ชันมองเห็นจาก HTML
+window.saveNotificationSettings = function () {
+  const enable = document.getElementById('enable-web-alert').checked;
+  const pm25 = parseInt(document.getElementById('pm25-threshold').value);
+  const pm10 = parseInt(document.getElementById('pm10-threshold').value);
+
+  const userRef = ref(db, `users/${userId}`);
+  set(userRef, {
+    notify_web: enable,
+    threshold_pm25: pm25,
+    threshold_pm10: pm10
+  }).then(() => {
+    alert("✅ บันทึกการตั้งค่าแล้ว");
+    loadUserNotificationSetting();
+  });
+};
+
+
+window.loadUserNotificationSetting = function () {
+  const userRef = ref(db, `users/${userId}`);
+  get(userRef).then(snapshot => {
+    if (snapshot.exists()) {
+      const prefs = snapshot.val();
+      userNotifyWeb = !!prefs.notify_web;
+      thresholdPM25 = prefs.threshold_pm25 || 50;
+      thresholdPM10 = prefs.threshold_pm10 || 100;
+
+      // ใส่ค่าลง input HTML
+      document.getElementById('enable-web-alert').checked = userNotifyWeb;
+      document.getElementById('pm25-threshold').value = thresholdPM25;
+      document.getElementById('pm10-threshold').value = thresholdPM10;
+    }
+  });
+};
+
+
+function openSettingsModal() {
+  document.getElementById('settingsModal').style.display = 'block';
+}
+
+function closeSettingsModal() {
+  document.getElementById('settingsModal').style.display = 'none';
+  
+}
+window.openSettingsModal = function () {
+  document.getElementById('settingsModal').style.display = 'block';
+};
+
+window.closeSettingsModal = function () {
+  document.getElementById('settingsModal').style.display = 'none';
+};
+
+setTimeout(() => {
+  alertDiv.remove();
+}, 10000); // หายหลัง 10 วินาที
+
+window.testSendEmail = function () {
+  const testPM25 = 90;
+  const testPM10 = 120;
+  const testEmail = document.getElementById("email-address").value;
+
+  if (!testEmail) {
+    alert("⚠️ กรุณากรอกอีเมลก่อนส่ง");
+    return;
+  }
+
+  sendEmailAlert(testPM25, testPM10, testEmail);
+}
