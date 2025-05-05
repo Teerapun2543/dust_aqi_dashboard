@@ -1,31 +1,51 @@
 <!DOCTYPE html>
 <html lang="th">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
-  <script type="module" src="script.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
-  <!-- เพิ่มการเชื่อมต่อกับ Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="fonts/THSarabunNew-normal.js"></script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ระบบตรวจวัดและติดตามคุณภาพอากาศในโรงงานคอนกรีตผสมเสร็จ</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- ✅ Font + CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+  
+    <!-- ✅ Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  
+    <!-- ✅ Graph & Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+  
+    <!-- ✅ PDF & Capture -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="fonts/THSarabunNew-normal.js"></script>
 
+      <!-- ✅ EmailJS CDN -->
+<!-- ✅ หลังโหลด email.min.js -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
-  <title>ระบบตรวจวัดและติดตามคุณภาพอากาศในโรงงานคอนกรีตผสมเสร็จ</title>
+<!-- ✅ ก่อนเรียกใช้งาน send() -->
+<script>
+  emailjs.init("NgG6LqY_2MPhgFGp8");
+</script>
 
- <!-- เชื่อมโยงไฟล์ CSS -->
- <link rel="stylesheet" href="styles.css" /></head>
-<body>
+    
+  <!-- ✅ ใช้ defer ถ้าใส่ไว้ใน <head> -->
+  <script src="script.js" defer></script>
 
-  <!-- Header Section -->
+    <!-- ✅ Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+    <!-- ✅ Main Script -->
+    <script type="module" src="script.js"></script>
+  </head>
   <header>
-    <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
+    <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
       <img src="images/logospu.png" alt="โลโก้มหาวิทยาลัย" style="height: 150px;" />
       <div>
         <h1>ระบบตรวจวัดและติดตามคุณภาพอากาศในโรงงานคอนกรีตผสมเสร็จ</h1>
@@ -34,16 +54,29 @@
     </div>
   </header>
 
-  <!-- Navigation Menu -->
-  <nav>
-    <a href="#">หน้าหลัก</a>
-    <a href="#">ข้อมูลปัจจุบัน</a>
-    <a href="#">ข้อมูลย้อนหลัง</a>
-    <a href="#">แผนที่เซนเซอร์</a>
-    <a href="#">เกี่ยวกับโครงการ</a>
-    <a href="#">ติดต่อเรา</a>
-  </nav>
 
+ <!-- ✅ Bootstrap Navbar -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light px-4 mb-3">
+  <a class="navbar-brand" href="#">ระบบตรวจวัดอากาศ</a>
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNavDropdown">
+    <ul class="navbar-nav ms-auto">
+      <li class="nav-item"><a class="nav-link" href="#">หน้าหลัก</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">ข้อมูลปัจจุบัน</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">ข้อมูลย้อนหลัง</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">แผนที่เซนเซอร์</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">เกี่ยวกับโครงการ</a></li>
+      <li class="nav-item"><a class="nav-link" href="#">ติดต่อเรา</a></li>
+    
+ <!-- ✅ Dropdown ตั้งค่าการแจ้งเตือน -->
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="openSettingsModal()">⚙️ ตั้งค่า</a>
+      </li>
+    </ul>
+  </div>
+</nav>
   <!-- Main Content -->
   <main>
     <section class="card">
@@ -81,17 +114,13 @@
               <div id="aqi-emoji" style="display: flex; justify-content: center; align-items: center;">
                 <img id="emoji-img" src="images/good.png" alt="AQI Icon" />
               </div>
-              
-              
             </div>
             <div id="aqi-level" style="font-size: 18px; margin: 8px 0;">--</div>
             <div class="pm-value"><strong>PM2.5:</strong> <span id="aqi-pm">--</span> µg/m³</div><div id="sensor-info" style="margin-top: 12px; font-size: 16px; text-align: center; color: #333;">
               🕒 อัปเดตล่าสุด: <span id="last-updated">--:--</span><br />
               📡 สถานะเซนเซอร์: <span id="sensor-status">--</span>
             </div>
-            
           </div>
-          
           <!-- เพิ่มส่วนนี้ใต้ AQI Card -->
 <section class="aqi-status">
   <h2>📋 ตารางบันทึกข้อมูลตรวจสอบล่าสุด </h2>
@@ -111,7 +140,6 @@
     </tbody>
   </table>
 </section>
-
           <div style="text-align: right; margin-top: 10px;">
             <button onclick="openHistoryModal()">📊 ดูข้อมูลย้อนหลัง</button>
           </div>
@@ -123,7 +151,6 @@
         <span style="font-size: 1.4em;">📊</span> 
         <span>รายงานสถิติคุณภาพอากาศย้อนหลัง 24 ชั่วโมง</span>
       </h2>
-
       <div class="dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
         <div class="card"><h3>🌫 ค่าเฉลี่ย PM2.5</h3><div class="value" id="avg-pm25">--</div></div>
         <div class="card"><h3>🌫 ค่าเฉลี่ย PM10</h3><div class="value" id="avg-pm10">--</div></div>
@@ -131,24 +158,15 @@
         <div class="card"><h3>💧 ความชื้นสัมพัทธ์</h3><div class="value" id="avg-humidity">--</div></div>
         <div class="card"><h3>🔺 PM2.5 สูงสุด</h3><div class="value" id="max-pm25">--</div></div>
         <div class="card"><h3>🔻 PM2.5 ต่ำสุด</h3><div class="value" id="min-pm25">--</div></div>
-
       </div>
-
       <div class="alert-bar" id="exceed-alert">
         <span style="color: #9c2d2d; font-weight: bold;">🟥 เกินค่ามาตรฐาน</span>
         <span style="font-weight: bold;">PM2.5: <span id="exceed-pm25">--</span> ครั้ง</span> |
         <span style="font-weight: bold;">PM10: <span id="exceed-pm10">--</span> ครั้ง</span>
       </div>
-      
-      
-
-      <div class="footer" style="text-align: center; font-size: 0.95rem; color: #555;">
-       📅 วันที่: <span id="latest-date">--</span>
-      </div>
-      
     </section>
   </main>
-
+ 
   <!-- ✅ ส่วนแสดงกราฟย้อนหลัง -->
 <section class="card chart">
   <h2>📊 กราฟวิเคราะห์แนวโน้มคุณภาพอากาศย้อนหลัง</h2>
@@ -160,8 +178,7 @@
   </div>
   <div id="history-loading" style="display:none; text-align:center;">⏳ กำลังโหลดข้อมูล...</div>
   </div>
-  
-  
+
   <!-- 📅 Date Picker -->
   <div style="margin: 10px 0;">
     <label for="datePicker">เลือกวันที่ 📅</label>
@@ -175,18 +192,11 @@
       <option value="">-- เลือกประเภทไฟล์ --</option>
       <option value="csv">CSV 📊</option>
       <option value="pdf">PDF 📄</option>
-     
-
     </select>
-    
   </div>
-  
   <canvas id="historyChart" style="max-height:300px; width:100%; background:white; border-radius:10px;"></canvas>
-  </section>
-  
-  
-  
-  <!-- แผนที่เซนเซอร์ -->
+  </section>ฃ
+<!-- แผนที่เซนเซอร์ -->
   <section class="card sensor-map">
   <h2>🗺 ตำแหน่งที่ตั้งระบบตรวจวัดและติดตามคุณภาพอากาศ</h2>
   <div style="height: 300px; border-radius: 10px; overflow: hidden;">
@@ -201,8 +211,7 @@
     </a>
   </div>
   </section>
-  
-   <!-- ตาราง AQI -->
+<!-- ตาราง AQI -->
    <section class="aqi-status">
     <h2>📋 มาตรฐานและเกณฑ์ประเมินดัชนีคุณภาพอากาศ (AQI)</h2>
     <table>
@@ -256,11 +265,64 @@
       <button onclick="document.getElementById('historyModal').style.display='none'">❌ ปิด</button>
     </div>
   </div>
-  
   </main>
 
  <!-- เชื่อมโยงไฟล์ JavaScript -->
  <script src="script.js"></script>
-
 </body>
+<div id="settingsModal" style="display: none; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
+  <h3>⚙️ ตั้งค่าการแจ้งเตือน</h3>
+
+  <!-- เปิด/ปิดการแจ้งเตือนผ่านอีเมล -->
+  <label>
+    <input type="checkbox" id="enable-email-alert" />
+    แจ้งเตือนทางอีเมล
+  </label>
+  <br />
+  <input
+    type="email"
+    id="email-address"
+    placeholder="ใส่อีเมลของคุณ"
+    class="form-control"
+    style="width: 100%; margin-bottom: 10px;"
+  />
+
+  <!-- เปิด/ปิดการแจ้งเตือนบนเว็บ -->
+  <label>
+    <input type="checkbox" id="enable-web-alert" />
+    แจ้งเตือนผ่านหน้าเว็บ
+  </label>
+  <br /><br />
+
+  <!-- ตั้งค่าเกณฑ์ค่าฝุ่น -->
+  <label for="pm25-threshold">เกณฑ์ PM2.5 (µg/m³):</label>
+  <input
+    type="number"
+    id="pm25-threshold"
+    value="50"
+    min="5"
+    max="500"
+    style="width: 100%; margin-bottom: 10px;"
+  />
+
+  <label for="pm10-threshold">เกณฑ์ PM10 (µg/m³):</label>
+  <input
+    type="number"
+    id="pm10-threshold"
+    value="100"
+    min="5"
+    max="500"
+    style="width: 100%; margin-bottom: 20px;"
+  />
+
+  <hr />
+
+  <!-- ปุ่มบันทึกและปิด -->
+  <button onclick="saveNotificationSettings()">💾 บันทึกการตั้งค่า</button>
+  <button onclick="closeSettingsModal()" style="float: right;">❌ ปิด</button>
+</div>
+
+
+</script>
+
 </html>
