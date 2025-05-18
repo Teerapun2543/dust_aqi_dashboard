@@ -1,260 +1,516 @@
 body {
   font-family: 'Sarabun', sans-serif;
-  margin: 0;
-  padding: 0;
-  background: #f4f6f8;
-  color: #333;
+  background-color: #000000;
+  color: #ffffff;
 }
-header, footer {
-  background: #004d99;
-  color: white;
-  text-align: center;
-  padding: 10px 20px;
+
+#control-panel {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-nav {
-  background: #007acc;
-  display: flex;
-  justify-content: center;
+
+.progress-bar-wrapper {
+  background: linear-gradient(to right, #a4e786, #fdfd6e, #f5a623, #f44336, #6a1b9a);
+  height: 20px;
+  border-radius: 10px;
+}
+
+#current-status .col h3 {
+  font-size: 2.2rem;
+  color: #007bff;
+}
+
+#summary .card {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+}
+
+canvas {
+  background-color: white;
+  border-radius: 10px;
+  padding: 10px;
+}
+#header-bar {
+  background-color: #ffffff;
+  border-bottom: 2px solid #dee2e6;
+  box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.1);
   flex-wrap: wrap;
 }
-nav a {
-  color: white;
-  padding: 15px 20px;
-  text-decoration: none;
+
+.logo-img {
+  height: 60px;
+}
+
+.status-icon {
+  height: 40px;
+  background-color: #00ff00;
+  border-radius: 50%;
+  padding: 5px;
+}
+
+.scale-bar-img {
+  height: 30px;
+}
+#pump-control-panel {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 10px;
+  max-width: 320px;
+  box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+}
+#pump-control-panel label {
+  font-weight: 500;
+}
+#header-bar {
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+#pump-control-panel input[type="number"] {
+  width: 80px;
+}
+.circle-display {
+  width: 100px;
+  height: 100px;
+  border: 5px solid currentColor;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   font-weight: bold;
 }
-nav a:hover {
-  background: #005b99;
+#current-status canvas {
+  background-color: transparent !important; /* ลบพื้นหลังขาวของ canvas */
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
-main {
-  padding: 20px;
+
+#current-status .text-center {
+  background-color: transparent !important; /* ลบพื้นหลังของ container รอบ canvas */
+  padding: 0;
+  margin: 0;
 }
-.card {
-  background: white;
-  margin-bottom: 20px;
-  padding: 20px;
+#current-status .d-flex {
+  gap: 20px !important; /* จาก gap-5 เหลือ 20px หรือกำหนดเอง */
+  flex-wrap: nowrap;    /* ถ้าไม่ต้องการให้เกจขึ้นบรรทัดใหม่ */
+  justify-content: flex-start;
+}
+.aqi-face {
+      height: 60px;
+      border-radius: 12px;
+}
+.aqi-bar-container {
+      position: relative;
+      width: 300px;
+      height: 30px;
+}
+.aqi-bar {
+      display: flex;
+      height: 100%;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .aqi-level { flex: 1; }
+    .level-1 { background-color: #3399ff; }
+    .level-2 { background-color: #66cc33; }
+    .level-3 { background-color: #ffcc00; }
+    .level-4 { background-color: #ff6600; }
+    .level-5 { background-color: #cc0033; }
+
+  .aqi-pointer {
+  position: absolute;
+  top: 15px; /* เปลี่ยนจาก bottom เป็น top เพื่อให้ชี้ลง */
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 15px solid black; /* เปลี่ยนจาก border-top เป็น border-bottom */
+  transition: left 0.3s ease-in-out;
+}
+canvas {
+  border-radius: 30px;
+  overflow: hidden;
+}
+
+.large-toggle .form-check-input {
+  width: 3rem;
+  height: 1.6rem;
+}
+
+.large-toggle .form-check-input:checked {
+  background-size: 1.2rem;
+}
+
+.large-toggle .form-check-label {
+  font-size: 1.2rem;
+}
+.chart-section canvas {
+  background-color: #fff;
   border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
-.flex-container {
+
+.chart-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.chart-container {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
 }
-.flex-item {
-  flex: 1 1 200px;
-  background: #e6f0ff;
-  border-radius: 12px;
-  padding: 15px;
-  text-align: center;
-  font-weight: bold;
-  color: #333;
-  transition: background-color 0.3s ease;
-}
-button {
-  background: #007acc;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin: 5px;
-  font-size: 14px;
-}
-button:hover {
-  background: #005b99;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-table, th, td {
-  border: 1px solid #ccc;
-}
-th, td {
-  padding: 8px;
-  text-align: center;
-}
-.footer-info {
-  font-size: 14px;
-  margin-top: 5px;
-}
-#aqi-card {
-  transition: background-color 0.3s ease;
-  color: #000;
-}
-.card .value {
-font-size: 1.8rem;
-font-weight: bold;
-margin-top: 10px;
+
+.left-gauges {
+  flex: 1;
+  min-width: 320px;
 }
 
-.card h3 {
-font-size: 1.1rem;
-margin-bottom: 8px;
-color: #333;
-}
-/* CSS สำหรับตาราง */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  font-size: 14px;
+.right-charts {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-th, td {
-  padding: 10px;
-  text-align: center;
-  border: 1px solid #ccc;
+.right-charts .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
 }
 
-th {
-  background-color: #f2f2f2;
-}
-
-td {
-  background-color: #fff;
-}
-
-#aqi-card {
-  font-size: 18px;
-  line-height: 1.7;
-  color: #000;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  text-align: center;
-  transition: background-color 0.3s ease;
-}
-
-#aqi-value {
-  font-size: 36px;
-  font-weight: bold;
-}
-
-#aqi-level {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 10px 0;
-}
-
-#aqi-emoji img {
-  height: 120px;         /* เพิ่มจาก 64px → 80px */
-  width: 120px;
-  object-fit: contain;
-  margin-top: 10px;
-  border-radius: 12px;
-  box-shadow: 0 0 6px rgba(0,0,0,0.1);
-}
-
-
-.pm-value {
-  font-size: 18px;
-  margin-top: 5px;
-}
-
-#sensor-info {
-  font-size: 16px;
-  margin-top: 12px;
-  color: #444;
-}
-
-/* Responsive: ปรับขนาดเมื่อหน้าจอเล็ก */
-@media (max-width: 480px) {
-  #aqi-value {
-    font-size: 28px;
-  }
-  #aqi-level {
-    font-size: 18px;
-  }
-  #aqi-emoji img {
-    height: 48px;
-    width: 48px;
-  }
-  #sensor-info {
-    font-size: 14px;
-  }
-}
-
-#sensor-info {
-  font-size: 16px;
-  margin-top: 12px;
-  color: #444;
-}
-.alert-bar {
-  margin-top: 20px;
-  padding: 12px 20px;
-  background-color: #f39c12; /* สีส้มทอง */
-  color: white;
-  font-weight: bold;
-  text-align: center;
-  border-radius: 8px;
-  font-size: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-#historyChart.loading::before {
-  content: "⏳ กำลังโหลดข้อมูล...";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  padding: 10px;
-  border: 1px solid #ccc;
-  z-index: 10;
-  font-weight: bold;
-}
-.web-alert {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background-color: #dc3545;
-  color: white;
-  padding: 16px 24px;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  font-size: 16px;
-  font-weight: bold;
-  white-space: pre-line;
-  z-index: 9999;
-  min-width: 260px;
-}
-
-.web-alert .close-btn {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: 20px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.dropdown-menu {
+.chart-box {
+  flex: 1;
   min-width: 300px;
-  right: 0;
-  transform: translateX(-60px); /* ขยับไปทางซ้าย */
-  padding: 15px;
+}
+.card {
+  max-width: 100%;
+}
+
+#averageChart {
+  max-width: 100%;
+  height: auto;
+}
+#gauges-charts canvas {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.chart-wrapper {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.chart-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+body {
   font-family: 'Sarabun', sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
+  background-color: #f9f9f9;
+  margin: 0;
+  padding: 20px;
+}
+
+.chart-container {
+  width: 90%;
+  max-width: 700px;
+  margin: auto;
   background: white;
   border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+#realtimeChart {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+#aqiScaleBar {
+  border: none;
+}
+.graph-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.05);
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-.dropdown-menu {
-  min-width: 340px;       /* เพิ่มความกว้างพื้นฐาน */
-  width: max-content;     /* ให้ขยายตามเนื้อหาภายใน */
-  padding: 15px;
-  font-size: 15px;
-  line-height: 1.6;
+.graph-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+canvas#averageChart {
+  width: 100% !important;
+  height: 400px !important;
+}
+#dailyChart {
+  width: 100%;
+  height: 400px !important; /* ป้องกันล้นและเลื่อนไม่หยุด */
+}
+
+.graph-container {
+  height: 400px;
+  overflow-y: auto;
+}
+.graph-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 1rem;
+}
+.graph-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+#dailyChart {
+  width: 100% !important;
+  height: 300px !important;
+}
+body {
   font-family: 'Sarabun', sans-serif;
-  white-space: normal;    /* ให้ขึ้นบรรทัดใหม่ได้ */
-  word-break: break-word; /* ตัดคำหากยาวเกิน */
+}
+/* ✅ เพิ่มความชัดเจนของข้อความในกราฟและเกจ */
+.chart-title,
+.graph-title,
+canvas {
+  font-family: 'Sarabun', sans-serif !important;
+  font-size: 16px !important;
+  color: #333 !important;
+}
+
+h5 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #004080;
+}
+
+label, input, span {
+  font-size: 16px;
+}
+
+#header-bar {
+  font-size: 18px;
+}
+canvas {
+  font-family: 'Sarabun', sans-serif !important;
+  font-size: 16px;
+}
+
+.text-center div {
+  font-size: 16px;
+  font-weight: 500;
+}
+/* ปรับพื้นหลังทุกกล่องเป็นเทาเข้มและข้อความสีขาว */
+.graph-card,
+.chart-wrapper,
+.card,
+#header-bar,
+section,
+canvas,
+input,
+label,
+form,
+h5,
+div,
+span {
+  background-color: #2e2e2e !important;
+  color: #ffffff !important;
+}
+
+/* ปรับ input ให้เข้ากับพื้นหลังเข้ม */
+input.form-control {
+  background-color: #444 !important;
+  color: #fff !important;
+  border: 1px solid #666;
+}
+
+/* ปรับ toggle ให้เข้ากับธีมมืด */
+.large-toggle .form-check-input {
+  background-color: #555;
+  border-color: #888;
+}
+.large-toggle .form-check-input:checked {
+  background-color: #4caf50;
+  border-color: #4caf50;
+}
+
+/* สีพื้นหลังกล่องและหัวข้อ */
+.graph-card,
+.chart-wrapper,
+.card,
+#header-bar,
+section,
+canvas,
+input,
+label,
+form,
+h5,
+div,
+span {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+/* กรอบกล่องหรือเนื้อหาที่เป็นข้อความ */
+.graph-title,
+.chart-title,
+h5,
+h4,
+h3 {
+  color: #00d1ff !important;  /* สีฟ้าสว่าง */
+}
+
+/* ข้อความ footer หรือ label เล็ก ๆ */
+label,
+input,
+span,
+div {
+  font-size: 16px;
+  color: #e0e0e0;
+}
+
+/* ปุ่ม toggle */
+.large-toggle .form-check-input {
+  background-color: #444;
+  border-color: #666;
+}
+.large-toggle .form-check-input:checked {
+  background-color: #00c853; /* สีเขียวสดเมื่อเปิด */
+  border-color: #00c853;
+}
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #000000; /* หรือสีที่คุณใช้ */
+  color: #ffffff;
+}
+.container-fluid {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.chart-title,
+.graph-title,
+h5,
+label {
+  color: #00e6ff !important; /* ฟ้าสว่าง */
+  font-weight: bold;
+}#header-bar .d-flex.align-items-center {
+  background-color: #ffffff; /* สีพื้นหลังเดิมของโลโก้ */
+  padding: 10px;
+  border-radius: 6px;
+}
+img[src*="logospu"] {
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+  .gauge-label {
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 8px;
+  }
+.gauge-container .gauge-label {
+  font-size: 1.2rem;        /* ทำให้ใหญ่ขึ้น */
+  color: white;             /* ตัวอักษรสีขาว */
+  margin-top: -10px;        /* ชิดกับเกจมากขึ้น */
+  font-weight: 1000;         /* หนาขึ้น อ่านง่าย */
+}
+.graph-card {
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  padding: 20px;
+  height: 420px;
+}
+/* 🔊 ปุ่มสวิตช์ใหญ่ขึ้น */
+.form-check-input {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.3rem;
+}
+
+/* ✅ ปรับปุ่ม toggle สีเขียวเมื่อเปิด */
+.form-check-input:checked {
+  background-color: #28a745;    /* เขียว */
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* ✅ ตัวหนังสือสีขาวชัดเจน */
+.form-check-label {
+  color: white !important;
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+
+/* ✉️ ช่องกรอกอีเมลพื้นเข้ม ตัวอักษรขาว */
+#emailInput {
+  background-color: #2b2b2b;
+  color: #fff;
+  border: 1px solid #555;
+}
+/* ตัวอย่างให้พื้นหลังกลมกลืน */
+#top-control-bar {
+  background-color: #111111;  /* ใช้สีเดียวกับพื้นหลังด้านล่าง */
+  margin-bottom: 0;
+  padding: 10px 20px;
+  border: none;
+  box-shadow: none;
 }
 
 
+  .modal-body,
+  .modal-body label,
+  .modal-body .form-check-label,
+  .modal-body .form-select,
+  .modal-body .form-control,
+  .modal-body .btn {
+    font-size: 26px !important;
+    color: white !important;
+  }
 
+  .modal-body input,
+  .modal-body select {
+    background-color: #222 !important;
+    border: 1px solid #555;
+    color: white;
+  }
 
+  .modal-content {
+    background-color: #111 !important;
+    color: white !important;
+  }
+  /* ปรับขนาดกล่อง checkbox */
+  .modal-body .form-check-input {
+    width: 28px;
+    height: 28px;
+    margin-top: 6px; /* จัดให้กล่องตรงกับข้อความ */
+  }
 
+  /* จัดตำแหน่ง label ให้อยู่กลางบรรทัด */
+  .modal-body .form-check-label {
+    font-size: 18px;
+    padding-left: 8px;
+  }
+
+  /* สำหรับ input กล่อง checkbox สีเข้ม */
+  .modal-body .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
