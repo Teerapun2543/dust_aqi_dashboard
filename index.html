@@ -3,326 +3,392 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ระบบตรวจวัดและติดตามคุณภาพอากาศในโรงงานคอนกรีตผสมเสร็จ</title>
-    <link rel="stylesheet" href="styles.css" />
-    <!-- ✅ Font + CSS -->
+    <title>Air Quality Monitoring Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css" />
-  
-    <!-- ✅ Firebase SDK -->
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Firebase SDKs ต้องโหลดก่อน -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  
-    <!-- ✅ Graph & Visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
-  
-    <!-- ✅ PDF & Capture -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="fonts/THSarabunNew-normal.js"></script>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+  function clearReportForm() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('viewType').value = 'graph';
+    ['pm25', 'pm10', 'temp', 'humid'].forEach(id => {
+      document.getElementById(id).checked = true;
+    });
+    document.getElementById('reportResult').innerHTML = '';
+  }
 
-      <!-- ✅ EmailJS CDN -->
-<!-- ✅ หลังโหลด email.min.js -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  function generateReport() {
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+    const view = document.getElementById('viewType').value;
+    const types = ['pm25', 'pm10', 'temp', 'humid'].filter(id => document.getElementById(id).checked);
 
-<!-- ✅ ก่อนเรียกใช้งาน send() -->
-<script>
-  emailjs.init("NgG6LqY_2MPhgFGp8");
+    // ✅ จำลองการแสดงผล
+    let html = `<p>แสดงข้อมูลตั้งแต่ <b>${start}</b> ถึง <b>${end}</b></p>`;
+    html += `<p>รูปแบบ: <b>${view === 'graph' ? 'กราฟ' : 'ตาราง'}</b></p>`;
+    html += `<p>ข้อมูล: <b>${types.join(', ').toUpperCase()}</b></p>`;
+
+    // 👉 ที่นี่คุณสามารถเขียนโค้ดแสดงกราฟหรือดึงข้อมูลจาก Firebase ต่อได้
+
+    document.getElementById('reportResult').innerHTML = html;
+  }
 </script>
 
-    
-  <!-- ✅ ใช้ defer ถ้าใส่ไว้ใน <head> -->
-  <script src="script.js" defer></script>
 
-    <!-- ✅ Bootstrap Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  
-    <!-- ✅ Main Script -->
-    <script type="module" src="script.js"></script>
   </head>
-  <header>
-    <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
-      <img src="images/logospu.png" alt="โลโก้มหาวิทยาลัย" style="height: 150px;" />
-      <div>
-        <h1>ระบบตรวจวัดและติดตามคุณภาพอากาศในโรงงานคอนกรีตผสมเสร็จ</h1>
-        <p>"เฝ้าระวังฝุ่นละออง เพื่อสิ่งแวดล้อมที่ปลอดภัยในโรงงานคอนกรีต"</p>
-      </div>
-    </div>
-  </header>
-
-
- <!-- ✅ Bootstrap Navbar -->
-<nav class="navbar navbar-expand-lg navbar-light bg-light px-4 mb-3">
-  <a class="navbar-brand" href="#">ระบบตรวจวัดอากาศ</a>
-  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-  <div class="collapse navbar-collapse" id="navbarNavDropdown">
-    <ul class="navbar-nav ms-auto">
-      <li class="nav-item"><a class="nav-link" href="#">หน้าหลัก</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">ข้อมูลปัจจุบัน</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">ข้อมูลย้อนหลัง</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">แผนที่เซนเซอร์</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">เกี่ยวกับโครงการ</a></li>
-      <li class="nav-item"><a class="nav-link" href="#">ติดต่อเรา</a></li>
-    
- <!-- ✅ Dropdown ตั้งค่าการแจ้งเตือน -->
-      <li class="nav-item">
-        <a class="nav-link" href="#" onclick="openSettingsModal()">⚙️ ตั้งค่า</a>
-      </li>
-    </ul>
-  </div>
-</nav>
-  <!-- Main Content -->
-  <main>
-    <section class="card">
-      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px;">
-        <div style="flex: 2; min-width: 280px;">
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-            <div class="flex-item">
-              <div id="gauge-pm25" style="height: 200px;"></div>
-              <div>🌫️ PM2.5</div>
-            </div>
-            <div class="flex-item">
-              <div id="gauge-pm10" style="height: 200px;"></div>
-              <div>🌫️ PM10</div>
-            </div>
-            <div class="flex-item">
-              <div id="gauge-temp" style="height: 200px;"></div>
-              <div>🌡 Temp</div>
-            </div>
-            <div class="flex-item">
-              <div id="gauge-humidity" style="height: 200px;"></div>
-              <div>💧 Humidity</div>
-            </div>
-          </div>
-          <div class="flex-item" style="margin-top: 15px;">
-            🛑 Status Pump: <span id="pump-status">--</span>
-          </div>
-        </div>
-        <div style="flex: 1; min-width: 220px;">
-          <div id="aqi-card" style="background: #fff3cd; border-radius: 12px; padding: 15px; color: #333; font-family: 'Arial', sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div id="aqi-value" style="font-size: 28px; font-weight: bold;">--</div>
-                <div style="font-size: 14px;">US AQI</div>
-              </div>
-              <div id="aqi-emoji" style="display: flex; justify-content: center; align-items: center;">
-                <img id="emoji-img" src="images/good.png" alt="AQI Icon" />
-              </div>
-            </div>
-            <div id="aqi-level" style="font-size: 18px; margin: 8px 0;">--</div>
-            <div class="pm-value"><strong>PM2.5:</strong> <span id="aqi-pm">--</span> µg/m³</div><div id="sensor-info" style="margin-top: 12px; font-size: 16px; text-align: center; color: #333;">
-              🕒 อัปเดตล่าสุด: <span id="last-updated">--:--</span><br />
-              📡 สถานะเซนเซอร์: <span id="sensor-status">--</span>
-            </div>
-          </div>
-          <!-- เพิ่มส่วนนี้ใต้ AQI Card -->
-<section class="aqi-status">
-  <h2>📋 ตารางบันทึกข้อมูลตรวจสอบล่าสุด </h2>
-  <table id="data-table">
-    <thead>
-      <tr>
-        <th>เวลา</th>
-        <th>PM2.5 (µg/m³)</th>
-        <th>PM10 (µg/m³)</th>
-        <th>อุณหภูมิ (°C)</th>
-        <th>ความชื้น (%)</th>
-        <th>สถานะปั๊ม</th>
-      </tr>
-    </thead>
-    <tbody id="table-body">
-      <!-- ข้อมูลจะถูกเติมด้วย JS -->
-    </tbody>
-  </table>
-</section>
-          <div style="text-align: right; margin-top: 10px;">
-            <button onclick="openHistoryModal()">📊 ดูข้อมูลย้อนหลัง</button>
-          </div>
-        </div>
-      </div>
-    <!-- Summary Section -->
-    <section class="card">
-      <h2 style="display: flex; align-items: center; gap: 10px; font-size: 1.5em; margin-bottom: 20px;">
-        <span style="font-size: 1.4em;">📊</span> 
-        <span>รายงานสถิติคุณภาพอากาศย้อนหลัง 24 ชั่วโมง</span>
-      </h2>
-      <div class="dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
-        <div class="card"><h3>🌫 ค่าเฉลี่ย PM2.5</h3><div class="value" id="avg-pm25">--</div></div>
-        <div class="card"><h3>🌫 ค่าเฉลี่ย PM10</h3><div class="value" id="avg-pm10">--</div></div>
-        <div class="card"><h3>🌡 อุณหภูมิเฉลี่ย</h3><div class="value" id="avg-temp">--</div></div>
-        <div class="card"><h3>💧 ความชื้นสัมพัทธ์</h3><div class="value" id="avg-humidity">--</div></div>
-        <div class="card"><h3>🔺 PM2.5 สูงสุด</h3><div class="value" id="max-pm25">--</div></div>
-        <div class="card"><h3>🔻 PM2.5 ต่ำสุด</h3><div class="value" id="min-pm25">--</div></div>
-      </div>
-      <div class="alert-bar" id="exceed-alert">
-        <span style="color: #9c2d2d; font-weight: bold;">🟥 เกินค่ามาตรฐาน</span>
-        <span style="font-weight: bold;">PM2.5: <span id="exceed-pm25">--</span> ครั้ง</span> |
-        <span style="font-weight: bold;">PM10: <span id="exceed-pm10">--</span> ครั้ง</span>
-      </div>
-    </section>
-  </main>
- 
-  <!-- ✅ ส่วนแสดงกราฟย้อนหลัง -->
-<section class="card chart">
-  <h2>📊 กราฟวิเคราะห์แนวโน้มคุณภาพอากาศย้อนหลัง</h2>
-  <div>
-    <button class="time-btn" data-hours="1">1 ชั่วโมง</button>
-    <button class="time-btn" data-hours="6">6 ชั่วโมง</button>
-    <button class="time-btn" data-hours="24">24 ชั่วโมง</button>
-    <button class="time-btn" data-hours="168">7 วัน</button>
-  </div>
-  <div id="history-loading" style="display:none; text-align:center;">⏳ กำลังโหลดข้อมูล...</div>
+<body>
+ <section id="header-bar" class="d-flex justify-content-between align-items-center px-4 py-2 bg-white shadow-sm flex-wrap">
+  <!-- ✅ ส่วนซ้าย: ชื่อโปรเจกต์ -->
+  <div class="d-flex align-items-center mb-2 me-auto">
+    <h1 class="project-title mb-0" style="font-size: 32px; color: #00e6ff;">
+      Dust Monitoring and Protection System for Concrete Batching Plants
+    </h1>
   </div>
 
-  <!-- 📅 Date Picker -->
-  <div style="margin: 10px 0;">
-    <label for="datePicker">เลือกวันที่ 📅</label>
-    <input type="date" id="datePicker" style="padding: 5px;" />
-  </div>
-  
-  <!-- 📥 เมนูดาวน์โหลด -->
-  <div style="margin-bottom: 10px;">
-    <label for="downloadSelect"><strong>📥 ดาวน์โหลดข้อมูลย้อนหลัง:</strong></label>
-    <select id="downloadSelect" style="margin-left:10px; padding:5px;">
-      <option value="">-- เลือกประเภทไฟล์ --</option>
-      <option value="csv">CSV 📊</option>
-      <option value="pdf">PDF 📄</option>
-    </select>
-  </div>
-  <canvas id="historyChart" style="max-height:300px; width:100%; background:white; border-radius:10px;"></canvas>
-  </section>ฃ
-<!-- แผนที่เซนเซอร์ -->
-  <section class="card sensor-map">
-  <h2>🗺 ตำแหน่งที่ตั้งระบบตรวจวัดและติดตามคุณภาพอากาศ</h2>
-  <div style="height: 300px; border-radius: 10px; overflow: hidden;">
-    <iframe
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3875.790726255974!2d100.73778127485552!3d13.731116286658619!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x311d6705010b8dc5%3A0x69accc2f9c92dd0!2z4LmB4Lie4Lil4LmJ4LiZ4LiX4LmM4Lil4Liy4LiU4LiB4Lij4Liw4Lia4Lix4LiHIEFDUA!5e0!3m2!1sen!2sth!4v1745937370950!5m2!1sen!2sth"
-      width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade">
-    </iframe>
-  </div>
-  <div style="margin-top: 10px;">
-    <a href="https://maps.app.goo.gl/JKTyXNTdbFWQvKTu7" target="_blank">
-      <button>เปิดใน Google Maps 📍</button>
-    </a>
-  </div>
-  </section>
-<!-- ตาราง AQI -->
-   <section class="aqi-status">
-    <h2>📋 มาตรฐานและเกณฑ์ประเมินดัชนีคุณภาพอากาศ (AQI)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>AQI</th><th>PM2.5 (µg/m³)</th><th>PM10 (µg/m³)</th><th>ผลกระทบต่อสุขภาพ</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>0-25 🟦</td><td>0-25</td><td>0-50</td><td>คุณภาพอากาศดีมาก</td></tr>
-        <tr><td>26-50 🟩</td><td>26-37</td><td>51-80</td><td>คุณภาพอากาศดี</td></tr>
-        <tr><td>51-100 🟨</td><td>38-50</td><td>81-120</td><td>มีผลต่อสุขภาพเล็กน้อย</td></tr>
-        <tr><td>101-200 🟧</td><td>51-90</td><td>121-180</td><td>เริ่มมีผลต่อสุขภาพ</td></tr>
-        <tr><td>>200 🟥</td><td>91+</td><td>181+</td><td>อันตรายต่อสุขภาพ</td></tr>
-      </tbody>
-    </table>
-  </section>
-  <!-- 🔽 Modal แสดงข้อมูลย้อนหลัง -->
-  <div id="historyModal" style="
-    display:none;
-    position: fixed;
-    top: 10%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 800px;
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.25);
-    z-index: 9999;
-    overflow-y: auto;
-    max-height: 80vh;
-  ">
-    <h2>ข้อมูลย้อนหลัง</h2>
-    <div style="margin-bottom: 10px;">
-      <label for="modalDatePicker">เลือกวันที่: </label>
-      <input type="date" id="modalDatePicker" />
-    </div>
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr>
-          <th>เวลา</th><th>PM2.5</th><th>PM10</th><th>อุณหภูมิ (°C)</th><th>ความชื้น (%)</th><th>ปั๊ม</th><th>สถานะอากาศ</th>
-        </tr>
-      </thead>
-      <tbody id="historyTableBody">
-        <!-- 🧾 ข้อมูลจะถูกเติมด้วย JS -->
-      </tbody>
-    </table>
-    <div style="text-align: right; margin-top: 10px;">
-      <button onclick="document.getElementById('historyModal').style.display='none'">❌ ปิด</button>
-    </div>
-  </div>
-  </main>
-
- <!-- เชื่อมโยงไฟล์ JavaScript -->
- <script src="script.js"></script>
-</body>
-<div id="settingsModal" style="display: none; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
-  <h3>⚙️ ตั้งค่าการแจ้งเตือน</h3>
-
-  <!-- เปิด/ปิดการแจ้งเตือนผ่านอีเมล -->
-  <label>
-    <input type="checkbox" id="enable-email-alert" />
-    แจ้งเตือนทางอีเมล
+  <!-- 🟢 สถานะปั๊มน้ำ -->
+<div class="d-flex align-items-center gap-3 flex-wrap">
+  <!-- ปุ่ม Manual/Auto -->
+  <label class="form-check form-switch m-0 large-toggle">
+    <input class="form-check-input" type="checkbox" id="autoManualToggle">
+    <span class="form-check-label ms-1" style="font-size: 24px;">Manual/Auto</span>
   </label>
-  <br />
-  <input
-    type="email"
-    id="email-address"
-    placeholder="ใส่อีเมลของคุณ"
-    class="form-control"
-    style="width: 100%; margin-bottom: 10px;"
-  />
 
-  <!-- เปิด/ปิดการแจ้งเตือนบนเว็บ -->
-  <label>
-    <input type="checkbox" id="enable-web-alert" />
-    แจ้งเตือนผ่านหน้าเว็บ
+  <!-- ปุ่ม OFF/ON -->
+  <label class="form-check form-switch m-0 large-toggle">
+    <input class="form-check-input" type="checkbox" id="pumpToggle" disabled>
+    <span class="form-check-label ms-1" style="font-size: 24px;">OFF/ON</span>
   </label>
-  <br /><br />
 
-  <!-- ตั้งค่าเกณฑ์ค่าฝุ่น -->
-  <label for="pm25-threshold">เกณฑ์ PM2.5 (µg/m³):</label>
-  <input
-    type="number"
-    id="pm25-threshold"
-    value="50"
-    min="5"
-    max="500"
-    style="width: 100%; margin-bottom: 10px;"
-  />
-
-  <label for="pm10-threshold">เกณฑ์ PM10 (µg/m³):</label>
-  <input
-    type="number"
-    id="pm10-threshold"
-    value="100"
-    min="5"
-    max="500"
-    style="width: 100%; margin-bottom: 20px;"
-  />
-
-  <hr />
-
-  <!-- ปุ่มบันทึกและปิด -->
-  <button onclick="saveNotificationSettings()">💾 บันทึกการตั้งค่า</button>
-  <button onclick="closeSettingsModal()" style="float: right;">❌ ปิด</button>
+  <!-- แสดงสถานะปั๊ม -->
+ <!-- สถานะปั๊ม -->
+<div class="d-flex align-items-center gap-2 mt-2">
+  <span class="fw-bold" style="font-size: 18px;">สถานะการทำปั๊ม:</span>
+  <span id="pumpStatusLabel" class="badge rounded-pill bg-secondary px-3 py-1" style="font-size: 16px;">กำลังโหลด...</span>
 </div>
 
 
+</div>
+
+<!-- ป้อนค่า PM -->
+<div class="d-flex flex-wrap gap-3 mt-2">
+  <label class="m-0">
+    PM 2.5 
+    <input id="pm25Input" type="number" class="form-control d-inline-block w-auto ms-2" min="0" step="1" />
+  </label>
+
+  <label class="m-0">
+    PM 10 
+    <input id="pm10Input" type="number" class="form-control d-inline-block w-auto ms-2" min="0" step="1" />
+  </label>
+</div>
+
+<div id="top-control-bar" class="d-flex justify-content-end align-items-center flex-wrap w-100 gap-4">
+<!-- กลุ่มแจ้งเตือน + AQI -->
+<div class="container-fluid">
+  <div class="d-flex justify-content-end align-items-center flex-wrap w-100 gap-4 mt-3">
+    <!-- เพิ่มปุ่มดูรายงาน -->
+<button class="btn btn-outline-info" 
+        data-bs-toggle="modal" 
+        data-bs-target="#reportModal"
+        style="color: white; font-size: 30px;">
+  รายงานคุณภาพอากาศ
+</button>
+
+
+  <!-- 🔔 กลุ่มแจ้งเตือน -->
+  <div class="d-flex align-items-center gap-3">
+    <label class="form-check form-switch m-0">
+      <input class="form-check-input" type="checkbox" id="toggleAlerts">
+      <span class="form-check-label ms-1">แจ้งเตือน</span>
+    </label>
+
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" id="alertSound" checked>
+      <label class="form-check-label" for="alertSound">เสียง</label>
+    </div>
+
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" id="alertPopup" checked>
+      <label class="form-check-label" for="alertPopup">Pop-up</label>
+    </div>
+  </div>
+
+  <!-- 🟢 AQI ด้านขวาสุด -->
+  <div class="d-flex align-items-center gap-2">
+    <img id="aqi-face"
+         src="image/excellent.png"
+         alt="Face Status"
+         title="Face Status"
+         style="height: 80px; border-radius: 1px;" />
+
+    <div class="position-relative" style="width: 300px;">
+      <canvas id="aqiScaleBar" width="300" height="70"></canvas>
+      <div class="d-flex mt-0 text-center" style="font-size: 14px;">
+        <div style="flex: 1;">ดีมาก</div>
+        <div style="flex: 1;">ดี</div>
+        <div style="flex: 1;">ปานกลาง</div>
+        <div style="flex: 1;">เริ่มมีผล</div>
+        <div style="flex: 1;">อันตราย</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+</section>
+
+<section class="my-3 px-4">
+  <div class="row">
+   <!-- ส่วนที่ 1: เกจ -->
+<div class="col-md-4">
+  <h5 style= "font-size: 26px;">สถานะข้อมูลล่าสุด</h5>
+  
+  <div class="d-flex justify-content-start flex-wrap gap-3">
+    <div class="text-center">
+      <canvas id="gauge-pm25" width="280" height="200"></canvas>
+      <div class="gauge-label fs-5 fw-semibold text-white">PM2.5</div>
+    </div>
+    <div class="text-center">
+      <canvas id="gauge-pm10" width="280" height="200"></canvas>
+      <div class="gauge-label fs-5 fw-semibold text-white">PM10</div>
+    </div>
+    <div class="text-center">
+      <canvas id="gauge-temp" width="280" height="200"></canvas>
+      <div class="gauge-label fs-5 fw-semibold text-white">Temperature</div>
+    </div>
+    <div class="text-center">
+      <canvas id="gauge-humid" width="280" height="200"></canvas>
+      <div class="gauge-label fs-5 fw-semibold text-white">Humidity</div>
+    </div>
+  </div>
+</div>
+
+  <!-- แผนที่แทนที่ Heatmap -->
+<div class="col-md-4">
+    <h5 style="font-size: 26px;">ตำแหน่งที่ติดตั้งระบบตรวจและติดตามคุณภาพ</h5>
+  <div class="rounded shadow-sm" style="height: 400px;">   <iframe
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3875.790726255974!2d100.73778127485552!3d13.731116286658619!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x311d6705010b8dc5%3A0x69accc2f9c92dd0!2z4LmB4Lie4Lil4LmJ4LiZ4LiX4LmM4Lil4Liy4LiU4LiB4Lij4Liw4Lia4Lix4LiHIEFDUA!5e0!3m2!1sen!2sth!4v1745937370950!5m2!1sen!2sth"
+    width="150%"
+    height="150%"
+    style="border:0;"
+    allowfullscreen=""
+    loading="lazy">    </iframe>
+  </div>
+</div>
+
+
+    <!-- กราฟ Real-time -->
+<div class="col-md-4">
+  <h5 style="font-size: 26px;">สถานะฝุ่นละอองปัจจุบัน</h5>
+
+   <!-- ✅ ตัวเลือกชนิดค่าฝุ่น อยู่กลางและตัวใหญ่ -->
+  <!-- ตัวเลือกชนิดค่าฝุ่น อยู่กลางและตัวใหญ่ -->
+<div class="mb-3 d-flex justify-content-center gap-5">
+  <div class="form-check form-check-inline text-white" style="font-size: 1.6rem;">
+    <input class="form-check-input" type="checkbox" id="showPM25" checked style="width: 24px; height: 24px;">
+    <label class="form-check-label ms-2 fw-bold text-info" for="showPM25">PM2.5</label>
+  </div>
+
+  <div class="form-check form-check-inline text-white" style="font-size: 1.6rem;">
+    <input class="form-check-input" type="checkbox" id="showPM10" checked style="width: 24px; height: 24px;">
+    <label class="form-check-label ms-2 fw-bold text-info" for="showPM10">PM10</label>
+  </div>
+</div>
+
+  <div class="ratio ratio-4x3">
+    <canvas id="realtimeChart"></canvas>
+  </div>
+</div>
+</section>
+<!-- Include Gauge rendering logic -->
+<script>
+function drawGauge(canvasId, value, max, unit, color) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(70, 70, 60, Math.PI, 0);
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = '#eee';
+  ctx.stroke();
+
+  // Foreground arc
+  const endAngle = Math.PI + (Math.PI * (value / max));
+  ctx.beginPath();
+  ctx.arc(70, 70, 60, Math.PI, endAngle);
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+
+  // Value Text
+  ctx.font = "20px sans-serif";
+  ctx.fillStyle = "#ffffff"; // ← เปลี่ยนจาก #000 เป็น #ffffff
+  ctx.textAlign = "center";
+  ctx.fillText(value, 70, 70);
+
+ctx.font = "12px sans-serif";
+ctx.fillText(unit, 70, 90);
+
+}
+
+function getColor(value, type) {
+  if (type === 'pm') {
+    if (value <= 25) return '#9acd32';
+    if (value <= 50) return '#ffcc00';
+    if (value <= 100) return '#ff9933';
+    if (value <= 200) return '#ff3300';
+    return '#cc0033';
+  }
+  if (type === 'temp' || type === 'humid') {
+    if (value < 30) return '#00bfff';
+    if (value < 40) return '#ffcc00';
+    return '#ff6600';
+  }
+  return '#999';
+}
+
+const sensorRef = firebase.database().ref("iot_data").limitToLast(1);
+sensorRef.on("value", (snapshot) => {
+  const dataObj = snapshot.val();
+  if (!dataObj) return;
+  const latestKey = Object.keys(dataObj)[0];
+  const data = dataObj[latestKey];
+
+  drawGauge('gauge-pm25', data.pm25 ?? 0, 100, 'µg/m³', getColor(data.pm25, 'pm'));
+  drawGauge('gauge-pm10', data.pm10 ?? 0, 200, 'µg/m³', getColor(data.pm10, 'pm'));
+  drawGauge('gauge-temp', data.temperature ?? 0, 50, '°C', getColor(data.temperature, 'temp'));
+  drawGauge('gauge-humid', data.humidity ?? 0, 100, '%', getColor(data.humidity, 'humid'));
+});
+</script>
+<!-- AQI Guide Modal -->
+<div class="modal fade" id="aqiModal" tabindex="-1" aria-labelledby="aqiModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="aqiModalLabel">ตารางมาตรฐาน AQI</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+        <img src="image/aqi-table.png" alt="AQI Table" class="img-fluid" />
+      </div>
+    </div>
+  </div>
+</div>
+<section class="my-3">
+  <div class="container-fluid px-0"> <!-- ลบ padding-x (px-0) -->
+    <div class="row g-0"> <!-- ลบช่องว่างระหว่าง columns -->
+      <!-- กล่องกราฟ -->
+      <div class="graph-card" style="height: 420px;">
+  <h5 style="font-size: 26px;">แนวโน้มคุณภาพอากาศย้อนหลัง</h5>
+  <canvas id="averageChart" style="width: 100%; height: 100%;"></canvas>
+</div>
+      </div>
+    </div>
+  </div>
+</section>
+<audio id="alertSoundPlayer" src="audio/alert.mp3" preload="auto"></audio>
+<script src="script.js"></script>
+<!-- Modal รายงานคุณภาพอากาศ -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen"> <!-- เปลี่ยนตรงนี้ -->
+    <div class="modal-content bg-dark text-white" style="padding: 20px;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reportModalLabel">รายงานคุณภาพอากาศ</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+       <!-- เลือกช่วงวันที่ -->
+<div class="row mb-3">
+  <div class="col">
+    <label>วันที่เริ่มต้น:</label>
+    <input type="date" id="startDate" class="form-control">
+  </div>
+  <div class="col">
+    <label>เวลาเริ่มต้น:</label>
+    <input type="time" id="startTime" class="form-control">
+  </div>
+  <div class="col">
+    <label>วันที่สิ้นสุด:</label>
+    <input type="date" id="endDate" class="form-control">
+  </div>
+  <div class="col">
+    <label>เวลาสิ้นสุด:</label>
+    <input type="time" id="endTime" class="form-control">
+  </div>
+</div>
+        <!-- เลือกชนิดของข้อมูล -->
+        <div class="form-check">
+  <input class="form-check-input" type="checkbox" id="pm25" value="PM2.5" checked onchange="updateSelectedData()">
+  <label class="form-check-label" for="pm25">PM2.5</label>
+</div>
+<div class="form-check">
+  <input class="form-check-input" type="checkbox" id="pm10" value="PM10" checked onchange="updateSelectedData()">
+  <label class="form-check-label" for="pm10">PM10</label>
+</div>
+<div class="form-check">
+  <input class="form-check-input" type="checkbox" id="temp" value="Temperature" checked onchange="updateSelectedData()">
+  <label class="form-check-label" for="temp">Temperature</label>
+</div>
+<div class="form-check">
+  <input class="form-check-input" type="checkbox" id="humid" value="Humidity" checked onchange="updateSelectedData()">
+  <label class="form-check-label" for="humid">Humidity</label>
+</div>
+        <!-- เลือกรูปแบบการแสดงผล -->
+        <div class="mb-3">
+          <label>เลือกการดูข้อมูล:</label>
+          <select id="viewType" class="form-select">
+            <option value="graph">กราฟ</option>
+            <option value="table">ตาราง</option>
+          </select>
+        </div>
+
+<!-- 🔹 ตำแหน่งแสดงค่าที่เลือก -->
+<div id="selectedData" class="mt-3 text-info" style="font-size: 18px;"></div>
+        <!-- ปุ่มควบคุม -->
+        <div class="d-flex justify-content-between">
+          <button class="btn btn-secondary" onclick="clearReportForm()">ล้างข้อมูล</button>
+          <button class="btn btn-primary" onclick="generateReport()">แสดงผล</button>
+        </div>
+        <!-- ส่วนแสดงผล -->
+        <div id="reportResult" class="mt-4">
+          <!-- แสดงกราฟหรือตารางที่เลือกไว้ -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  function updateSelectedData() {
+    const selected = [];
+    ['pm25', 'pm10', 'temp', 'humid'].forEach(id => {
+      const checkbox = document.getElementById(id);
+      if (checkbox.checked) {
+        selected.push(checkbox.value);
+      }
+    });
+    const display = document.getElementById('selectedData');
+    if (selected.length > 0) {
+      display.textContent = 'คุณเลือก: ' + selected.join(', ');
+    } else {
+      display.textContent = 'คุณยังไม่ได้เลือกข้อมูลใดเลย';
+    }
+  }
+  // เรียกครั้งแรกตอนโหลด modal
+  document.addEventListener('DOMContentLoaded', updateSelectedData);
 </script>
 
+
+</body>
 </html>
