@@ -1,908 +1,777 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
+  authDomain: "air-quality-monitor-80a0c.firebaseapp.com",
+  databaseURL: "https://air-quality-monitor-80a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "air-quality-monitor-80a0c",
+  storageBucket: "air-quality-monitor-80a0c.firebasestorage.app",
+  messagingSenderId: "625949588545",
+  appId: "1:625949588545:web:479e4636bf048615e19ac0"
+};
 
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-  import { get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-  import { set } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-  
-  const firebaseConfig = {
-    apiKey: "AIzaSyBVVhuktrqcs5rFNqVLDTvPAybwAJcF-Kc",
-    authDomain: "air-quality-monitor-80a0c.firebaseapp.com",
-    databaseURL: "https://air-quality-monitor-80a0c-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "air-quality-monitor-80a0c",
-    storageBucket: "air-quality-monitor-80a0c.appspot.com",
-    messagingSenderId: "625949588545",
-    appId: "1:625949588545:web:479e4636bf048615e19ac0"
-  };
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const dataRef = ref(db, 'iot_data');
+  // ✅ เริ่มต้น Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-  let userId = null; // สมมุติว่ามีระบบผู้ใช้
-  let userNotifyWeb = true;
-  let thresholdPM25 = 50;
-  let thresholdPM10 = 100;
+  // ✅ ดึงสถานะปั๊มจาก path เช่น /pump/status
+const realtimePumpStatusRef = firebase.database().ref("pump_status_now");
 
-  function loadUserNotificationSetting() {
-    const userRef = ref(db, `users/${userId}`);
-    return get(userRef).then(snapshot => {
-      if (snapshot.exists()) {
-        const prefs = snapshot.val();
-        userNotifyWeb = !!prefs.notify_web;
-        thresholdPM25 = prefs.threshold_pm25 || 50;
-        thresholdPM10 = prefs.threshold_pm10 || 100;
-  
-        // เติมค่าใน UI
-        document.getElementById('enable-web-alert').checked = userNotifyWeb;
-        document.getElementById('pm25-threshold').value = thresholdPM25;
-        document.getElementById('pm10-threshold').value = thresholdPM10;
-      }
+realtimePumpStatusRef.on("value", (snapshot) => {
+  const status = snapshot.val();
+  const label = document.getElementById("pumpStatusLabel");
+
+  if (status === "ON") {
+    label.textContent = "กำลังทำงาน (ON)";
+    label.className = "badge rounded-pill bg-success px-3 py-1";
+  } else if (status === "OFF") {
+    label.textContent = "หยุดทำงาน (OFF)";
+    label.className = "badge rounded-pill bg-danger px-3 py-1";
+  } else {
+    label.textContent = "ไม่ทราบสถานะ";
+    label.className = "badge rounded-pill bg-secondary px-3 py-1";
+  }
+});
+
+
+
+// ✅ ย้ายไว้ด้านนอกเพื่อให้เรียกได้ทุกที่
+function triggerAlert(message) {
+  const toggleAlerts = document.getElementById('toggleAlerts');
+  const alertSound = document.getElementById('alertSound');
+  const alertPopup = document.getElementById('alertPopup');
+
+  if (!toggleAlerts?.checked) return;
+
+  if (alertSound?.checked) {
+    const player = document.getElementById('alertSoundPlayer');
+    player.pause();
+    player.currentTime = 0;
+    player.play().catch(err => console.warn("เล่นเสียงล้มเหลว:", err));
+  }
+
+  if (alertPopup?.checked) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'แจ้งเตือนค่าฝุ่นเกิน!',
+      html: `<strong>${message.replace(/\n/g, '<br>')}</strong>`,
+      confirmButtonText: 'รับทราบ',
+      background: '#222',
+      color: '#fff'
     });
   }
-  
-  
+}
 
-// เรียกโหลดค่า notify_web ก่อน แล้วค่อยเริ่มอ่านข้อมูล iot_data
-loadUserNotificationSetting().then(() => {
-  onValue(dataRef, (snapshot) => {
-    const dataAll = snapshot.val();
-    if (!dataAll) return;
-  
-    let latestData = null;
-    let latestTime = 0;
-  
-    Object.values(dataAll).forEach((entry) => {
-      const ts = new Date(entry.timestamp).getTime();
-      if (!isNaN(ts) && ts > latestTime) {
-        latestTime = ts;
-        latestData = entry;
+window.addEventListener("DOMContentLoaded", () => {
+  // ✅ ควบคุมเปิด-ปิดแจ้งเตือนทั้งหมด
+const toggleAlerts = document.getElementById('toggleAlerts');
+const alertSound = document.getElementById('alertSound');
+const alertPopup = document.getElementById('alertPopup');
+
+function setAlertControlsState(enabled) {
+  alertSound.disabled = !enabled;
+  alertPopup.disabled = !enabled;
+}
+// 🔁 เมื่อเปิด/ปิด toggle แจ้งเตือน
+toggleAlerts.addEventListener('change', () => {
+  setAlertControlsState(toggleAlerts.checked);
+});
+// ✅ เริ่มต้น: ตั้งค่าควบคุมตามสถานะ toggleAlerts
+setAlertControlsState(toggleAlerts.checked);
+
+  // ✅ Chart setup
+  const ctx = document.getElementById('realtimeChart')?.getContext('2d');
+  if (!ctx) {
+    console.error("ไม่พบ canvas realtimeChart");
+    return;
+  }
+
+  const realtimeChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'PM2.5',
+      data: [],
+      borderColor: '#ff0000', 
+      backgroundColor: 'rgba(255, 0, 0, 0.2)',
+      borderWidth: 2,
+      pointRadius: 0,
+      fill: true,
+      tension: 0.150
+       },
+    {
+  label: 'PM10',
+  data: [], 
+  borderColor: '#0ced35',                  // ฟ้าสด
+  backgroundColor: 'rgba(10, 241, 72, 0.18)', // ฟ้าจางแบบโปร่งใส
+  borderWidth: 2,
+  pointRadius: 0,
+  fill: true,
+  tension: 0.150
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: { padding: 10 },
+    plugins: {
+      legend: {
+        labels: {
+          color: '#fff',         // ✅ สีข้อความ legend
+          font: { size: 14 }
+        }
+      },
+      tooltip: {
+        bodyColor: '#fff',
+        titleColor: '#fff',
+        backgroundColor: '#333',
+        titleFont: { size: 14 },
+        bodyFont: { size: 14 }
       }
-    });
-  
-    if (!latestData) return;
-  
-    const pm25 = parseFloat(latestData.pm25);
-    const pm10 = parseFloat(latestData.pm10);
-  
-    // ✅ โหลดค่าที่ผู้ใช้ตั้งไว้ (อ่านจาก input)
-    const userPM25 = parseFloat(document.getElementById("pm25-threshold").value);
-    const userPM10 = parseFloat(document.getElementById("pm10-threshold").value);
-    const emailEnabled = document.getElementById("enable-email-alert").checked;
-    const userEmail = document.getElementById("email-address").value.trim();
-  
-    const isOverThreshold = pm25 > userPM25 || pm10 > userPM10;
-  
-    if (isOverThreshold) {
-      showWebAlert(pm25, pm10); // ✅ แจ้งเตือนบนเว็บ
-  
-      // ✅ ส่งอีเมลเมื่อเปิดใช้งาน
-      if (emailEnabled && userEmail) {
-        sendEmailAlert(pm25, pm10, userEmail);
+    },
+ scales: {
+  x: {
+   offset: false, // ✅ ปิดช่องว่างด้านซ้าย-ขวา
+  title: {
+    display: true,
+    text: 'Time',
+    color: '#fff',
+    font: { size: 24 }
+    },
+    ticks: {
+    color: '#fff',
+    font: { size: 18 },
+    maxTicksLimit: 10,
+      callback: function(value, index, ticks) {
+        // 🕒 ฟอร์แมตเวลาจาก label
+        const timeString = this.getLabelForValue(value);
+        // คาดว่าเวลาอยู่ในรูปแบบ HH:mm:ss เช่น "15:23:27"
+        const [hh, mm] = timeString.split(':');
+        return `${hh}:${mm}`;
       }
+    },
+    grid: {
+      color: 'rgba(255,255,255,0.1)'
     }
+  },
 
-    const temperature = parseFloat(latestData.temperature);
-    const humidity = parseFloat(latestData.humidity);
-    const pumpStatus = latestData.pump_status; 
-    const updateTime = new Date(latestData.timestamp).toLocaleTimeString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit'
+  y: {
+    title: {
+      display: true,
+      text: 'µg/m³',
+      color: '#fff',
+      font: { size: 24}
+    },
+    ticks: {
+      color: '#fff',
+      font: { size: 18 }
+    },
+    grid: {
+      color: 'rgba(255,255,255,0.1)'
+    }
+  }
 
-      
+}
+}
+});
+// ✅ เพิ่มหลังจาก chart ถูกสร้าง
+document.getElementById('showPM25').addEventListener('change', function () {
+  realtimeChart.data.datasets[0].hidden = !this.checked;
+  realtimeChart.update();
+});
+document.getElementById('showPM10').addEventListener('change', function () {
+  realtimeChart.data.datasets[1].hidden = !this.checked;
+  realtimeChart.update();
+});
+
+  // ✅ Firebase sensor data
+  const sensorRef = firebase.database().ref("iot_data").limitToLast(20);
+  sensorRef.on("value", (snapshot) => {
+    const rawData = snapshot.val();
+    if (!rawData) return;
+
+    const keys = Object.keys(rawData);
+    realtimeChart.data.labels = [];
+    realtimeChart.data.datasets[0].data = []; // PM2.5
+    realtimeChart.data.datasets[1].data = []; // PM10
+
+    keys.forEach(key => {
+    const time = rawData[key].timestamp?.split(" ")[1] || key.split("_")[1];
+    realtimeChart.data.labels.push(time);
+    realtimeChart.data.datasets[0].data.push(rawData[key].pm25 || 0);
+    realtimeChart.data.datasets[1].data.push(rawData[key].pm10 || 0);
     });
 
-    displayValue('last-updated', updateTime);
-    displayValue('sensor-status', 'เชื่อมต่อปกติ');
-    displayValue('aqi-pm', pm25);
-    pm25Gauge.refresh(pm25);
-    pm10Gauge.refresh(pm10);
-    tempGauge.refresh(temperature);
-    humidityGauge.refresh(humidity);
+    realtimeChart.update();
 
-    const aqi = getAQILevelAndColor(pm25);
-    displayValue('aqi-value', aqi.aqi);
-    displayValue('aqi-level', aqi.level);
-    document.getElementById('emoji-img').src = aqi.emojiImg;
-    displayValue('pump-status', pumpStatus);
-    document.getElementById('aqi-card').style.backgroundColor = aqi.bgColor;
+    // ✅ อัปเดต AQI จากข้อมูลล่าสุด
+    const latest = rawData[keys[keys.length - 1]];
+    updateAQIDisplay(latest.pm25 ?? 0, latest.pm10 ?? 0);
+    // ✅ เพิ่มการแจ้งเตือนถ้าค่าฝุ่นเกินเกณฑ์ที่ผู้ใช้ตั้งไว้
+    const pm25Threshold = parseInt(document.getElementById("pm25Input").value);
+    const pm10Threshold = parseInt(document.getElementById("pm10Input").value);
+    if ((latest.pm25 >= pm25Threshold) || (latest.pm10 >= pm10Threshold)) {
+   triggerAlert(`⚠️ ค่าฝุ่นเกินที่กำหนด!\nPM2.5: ${latest.pm25} µg/m³\nPM10: ${latest.pm10} µg/m³`);
+}
+  });
 
-    // ✅ ย้ายมาไว้ตรงนี้
-    if (userNotifyWeb && (pm25 > thresholdPM25 || pm10 > thresholdPM10)) {
-      console.log("🚨 แจ้งเตือนแล้ว:", pm25, pm10);
-      showWebAlert(pm25, pm10);
-    }
-    
-    
+  // ✅ ปั๊มน้ำ
+  const pumpControlRef = firebase.database().ref("pump_control");
+  const autoManualToggle = document.getElementById("autoManualToggle");
+  const pumpToggle = document.getElementById("pumpToggle");
+  const pm25Input = document.getElementById("pm25Input");
+  const pm10Input = document.getElementById("pm10Input");
+
+  pumpControlRef.on("value", (snapshot) => {
+    const data = snapshot.val();
+    const isManual = data.mode === "manual";
+
+    autoManualToggle.checked = !isManual;
+    pumpToggle.disabled = !isManual;
+    pumpToggle.checked = data.manual_status === true;
+
+    pm25Input.value = data.thresholdPM25;
+    pm10Input.value = data.thresholdPM10;
+    pm25Input.disabled = isManual;
+    pm10Input.disabled = isManual;
+  });
+
+  autoManualToggle.addEventListener("change", (e) => {
+    pumpControlRef.update({
+      mode: e.target.checked ? "auto" : "manual",
+      manual_status: false
+    });
+  });
+
+  pumpToggle.addEventListener("change", (e) => {
+    pumpControlRef.update({ manual_status: e.target.checked });
+  });
+
+  pm25Input.addEventListener("change", (e) => {
+    const val = parseInt(e.target.value);
+    if (!isNaN(val)) pumpControlRef.update({ thresholdPM25: val });
+  });
+
+  pm10Input.addEventListener("change", (e) => {
+    const val = parseInt(e.target.value);
+    if (!isNaN(val)) pumpControlRef.update({ thresholdPM10: val });
+  });
+
+  // ✅ แสดง Gauge
+  firebase.database().ref("iot_data").limitToLast(1).on("value", (snapshot) => {
+    const dataObj = snapshot.val();
+    if (!dataObj) return;
+    const lastKey = Object.keys(dataObj)[0];
+    const data = dataObj[lastKey];
+    if (!data.timestamp) return; // ❗ กันข้อมูล invalid
+
+    console.log("Gauge data:", data);
+    drawGauge('gauge-pm25', data.pm25, 100, 'µg/m³', '#ffcc00');
+    drawGauge('gauge-pm10', data.pm10, 200, 'µg/m³', '#ff9933');
+    drawGauge('gauge-temp', data.temperature, 50, '°C', '#00bfff');
+    drawGauge('gauge-humid', data.humidity, 100, '%', '#00bfff');
+
+
   });
 });
 
-  function displayValue(id, value, unit = '') {
-  const el = document.getElementById(id);
-  if (el) el.innerText = value !== undefined ? value + unit : '--';
+// ✅ วาด Gauge
+function drawGauge(canvasId, value, max, unit, color) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ถ้าค่าที่แสดงคือ temp/humidity และมี mini ให้อัปเดตด้วย
-  if (id === 'temp-value' && document.getElementById('temp-value-mini')) {
-    document.getElementById('temp-value-mini').innerText = value !== undefined ? value : '--';
+  ctx.beginPath();
+  ctx.arc(140, 140, 120, Math.PI, 0);
+  ctx.lineWidth = 20;
+  ctx.strokeStyle = "#eee";
+  ctx.stroke();
+
+  const endAngle = Math.PI + (Math.PI * (value / max));
+  ctx.beginPath();
+  ctx.arc(140, 140, 120, Math.PI, endAngle);
+  ctx.lineWidth = 20;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+
+  ctx.font = "32px 'Sarabun', sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.fillText(value !== undefined ? value : '-', 140, 140);
+  ctx.font = "20px 'Sarabun', sans-serif";
+  ctx.fillText(unit, 140, 170);
+}
+
+
+// ✅ คำนวณ AQI และอัปเดต UI
+const AQI_TABLE = [
+  { min: 0, max: 25, face: 'excellent', color: '#87cefa' },
+  { min: 26, max: 50, face: 'good', color: '#32cd32' },
+  { min: 51, max: 100, face: 'neutral', color: '#ffa500' },
+  { min: 101, max: 200, face: 'mask', color: '#ff4500' },
+  { min: 201, max: Infinity, face: 'danger', color: '#b22222' }
+];
+
+function getAQIFromPM(pm25, pm10) {
+  const pm25AQI = getAQILevel(pm25, 'pm25');
+  const pm10AQI = getAQILevel(pm10, 'pm10');
+  return pm25AQI.aqi > pm10AQI.aqi ? pm25AQI : pm10AQI;
+}
+
+function getAQILevel(value, type) {
+  let aqi = 0;
+  if (type === 'pm25') {
+    if (value <= 25) aqi = value;
+    else if (value <= 37) aqi = 30 + (value - 26);
+    else if (value <= 50) aqi = 51 + (value - 38);
+    else if (value <= 90) aqi = 101 + (value - 51);
+    else aqi = 200 + (value - 91);
+  } else if (type === 'pm10') {
+    if (value <= 50) aqi = value / 2;
+    else if (value <= 80) aqi = 30 + (value - 51);
+    else if (value <= 120) aqi = 51 + (value - 81);
+    else if (value <= 180) aqi = 101 + (value - 121);
+    else aqi = 200 + (value - 181);
   }
-  if (id === 'humidity-value' && document.getElementById('humidity-value-mini')) {
-    document.getElementById('humidity-value-mini').innerText = value !== undefined ? value : '--';
+  const ref = AQI_TABLE.find(r => aqi >= r.min && aqi <= r.max);
+  return { aqi: Math.round(aqi), face: ref.face, color: ref.color };
+}
+
+function updateAQIDisplay(pm25, pm10) {
+  const aqiResult = getAQIFromPM(pm25, pm10);
+  document.getElementById('aqi-face').src = `image/${aqiResult.face}.png`;
+  drawAQIScaleBar("aqiScaleBar", aqiResult.aqi);
+
+  // ✅ เรียกเตือนเมื่อ AQI เกิน
+  if (aqiResult.aqi > 100) {
+    triggerAlert(`⚠️ AQI สูง: ${aqiResult.aqi}`);
   }
 }
-function getAQILevelAndColor(pm25) {
-  const val = parseFloat(pm25);
-  if (val <= 25) return {
-    aqi: 15,
-    level: 'ดีมาก',
-    color: '#3f87ff',
-    bgColor: '#e6f0ff',
-    emojiImg: 'images/excellent.png'
-  };
-  if (val <= 37) return {
-    aqi: 40,
-    level: 'ดี',
-    color: '#28a745',
-    bgColor: '#e9f7ec',
-    emojiImg: 'images/good.png'
-  };
-  if (val <= 50) return {
-    aqi: 75,
-    level: 'ปานกลาง',
-    color: '#ffc107',
-    bgColor: '#fff9db',
-    emojiImg: 'images/neutral.png'
-  };
-  if (val <= 90) return {
-    aqi: 150,
-    level: 'เริ่มมีผลต่อสุขภาพ',
-    color: '#fd7e14',
-    bgColor: '#ffe5cc',
-    emojiImg: 'images/mask.png'
-  };
-  return {
-    aqi: 250,
-    level: 'อันตราย',
-    color: '#dc3545',
-    bgColor: '#ffe6e6',
-    emojiImg: 'images/danger.png'
-  };
-}
-  function getPM25Background(value) {
-    if (value <= 25) return '#cce5ff';
-    if (value <= 37) return '#d4edda';
-    if (value <= 50) return '#fff3cd';
-    if (value <= 90) return '#ffe5b4';
-    return '#f8d7da';
-  }
-  function getPM10Background(value) {
-    if (value <= 50) return '#cce5ff';
-    if (value <= 80) return '#d4edda';
-    if (value <= 120) return '#fff3cd';
-    if (value <= 180) return '#ffe5b4';
-    return '#f8d7da';
-  }
-  // ----- ส่วนกราฟย้อนหลัง -----
-  let historyChart;
-  let selectedDateStr = null;
-  let selectedHours = 24;
 
-  function createChart(labels, pm25Data, pm10Data) {
-    const ctx = document.getElementById('historyChart').getContext('2d');
-    if (historyChart) historyChart.destroy();
-  
-    historyChart = new Chart(ctx, {
+
+
+// ✅ วาดแท่ง AQI bar
+function drawAQIScaleBar(canvasId, aqi) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const width = canvas.width;
+  const barHeight = 30;
+  const barY = 30;
+  const sectionWidth = width / AQI_TABLE.length;
+
+  // วาดแถบสี
+  AQI_TABLE.forEach((range, i) => {
+    ctx.fillStyle = range.color;
+    ctx.fillRect(i * sectionWidth, barY, sectionWidth, barHeight);
+  });
+
+  // คำนวณตำแหน่ง pointer
+  let pointerX = 0;
+  if (aqi <= 25) {
+    pointerX = (aqi / 25) * sectionWidth;
+  } else if (aqi <= 50) {
+    pointerX = sectionWidth + ((aqi - 26) / (50 - 26)) * sectionWidth;
+  } else if (aqi <= 100) {
+    pointerX = sectionWidth * 2 + ((aqi - 51) / (100 - 51)) * sectionWidth;
+  } else if (aqi <= 200) {
+    pointerX = sectionWidth * 3 + ((aqi - 101) / (200 - 101)) * sectionWidth;
+  } else {
+    pointerX = sectionWidth * 4 + ((aqi - 201) / (500 - 201)) * sectionWidth;
+  }
+
+  // วาดลูกศร pointer
+  ctx.beginPath();
+  ctx.moveTo(pointerX, barY - 5);
+  ctx.lineTo(pointerX - 8, barY - 20);
+  ctx.lineTo(pointerX + 8, barY - 20);
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+}
+function loadHourlyAverages() {
+  const ctx = document.getElementById("averageChart")?.getContext("2d");
+  if (!ctx) return;
+
+  const sensorRef = firebase.database().ref("iot_data");
+
+  sensorRef.once("value", (snapshot) => {
+    const rawData = snapshot.val();
+    if (!rawData) return;
+
+    // เตรียม array 24 ช่อง (0–23)
+    const hourly = Array.from({ length: 24 }, () => ({ pm25: [], pm10: [] }));
+
+    Object.values(rawData).forEach(entry => {
+      const [dateStr, timeStr] = entry.timestamp?.split(" ") || [];
+      const hour = parseInt(timeStr?.split(":")[0]);
+
+      if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+        if (entry.pm25) hourly[hour].pm25.push(entry.pm25);
+        if (entry.pm10) hourly[hour].pm10.push(entry.pm10);
+      }
+    });
+
+    const labels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    const pm25 = hourly.map(h => avg(h.pm25));
+    const pm10 = hourly.map(h => avg(h.pm10));
+
+    if (window.averageChartInstance) window.averageChartInstance.destroy();
+    window.averageChartInstance = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'PM2.5 (µg/m³)',
-            data: pm25Data,
-            backgroundColor: 'rgba(255, 99, 132, 0.7)'
-          },
-          {
-            label: 'PM10 (µg/m³)',
-            data: pm10Data,
-            backgroundColor: 'rgba(54, 162, 235, 0.7)'
-          }
-        ]
+        labels,
+       datasets: [
+  ...(types.includes('pm25') ? [{
+    label: 'PM2.5',
+    data: datasetsMap.pm25.data,
+    borderColor: '#ff4d4d',
+    backgroundColor: 'rgba(255, 77, 77, 0.4)',
+    borderWidth: 2,
+    fill: true,
+    tension: 0.4,
+    pointRadius: 0
+  }] : []),
+  ...(types.includes('pm10') ? [{
+    label: 'PM10',
+    data: datasetsMap.pm10.data,
+    borderColor: '#00cc44',
+    backgroundColor: 'rgba(0, 204, 68, 0.4)',
+    borderWidth: 2,
+    fill: true,
+    tension: 0.4,
+    pointRadius: 0
+  }] : []),
+  ...(types.includes('temp') ? [{
+    label: 'Temperature (°C)',
+    data: datasetsMap.temp.data,
+    borderColor: '#ffcc00',
+    backgroundColor: 'rgba(255, 204, 0, 0.3)',
+    borderWidth: 2,
+    fill: false,
+    tension: 0.4,
+    pointStyle: 'rectRot',
+    borderDash: [5, 5],
+    yAxisID: 'y2'
+  }] : []),
+  ...(types.includes('humid') ? [{
+    label: 'Humidity (%)',
+    data: datasetsMap.humid.data,
+    borderColor: '#00bfff',
+    backgroundColor: 'rgba(0, 191, 255, 0.3)',
+    borderWidth: 2,
+    fill: false,
+    tension: 0.4,
+    pointStyle: 'circle',
+    borderDash: [5, 5],
+    yAxisID: 'y2'
+  }] : [])
+]
+
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-          x: {
-            title: { display: true, text: 'เวลา' },
-            ticks: {
-              autoSkip: true,
-              maxTicksLimit: 24
-            }
+        plugins: {
+          title: {
+            display: true,
+            text: 'ค่าฝุ่นเฉลี่ย',
+            color: '#00e6ff',
+            font: { size: 24 }
           },
-          y: {
-            title: { display: true, text: 'µg/m³' },
-            beginAtZero: true
+          legend: {
+            labels: { color: '#fff', font: { size: 20 } }
           }
         },
-        plugins: {
-          legend: {
-            position: 'top'
-          }
-        }
-      }
-    });
+         scales: {
+  x: {
+    ticks: {
+      color: '#fff',
+      font: { size: 14 },
+      maxRotation: 45,
+      minRotation: 45
+    },
+    title: {
+      display: true,
+      text: 'วัน-เวลา',
+      color: '#fff',
+      font: { size: 18 }
+    },
+    grid: {
+      color: 'rgba(255,255,255,0.05)'
+    }
+  },
+  y: {
+    beginAtZero: true,
+    title: {
+      display: true,
+      text: 'ค่าฝุ่น (µg/m³)',
+      color: '#fff',
+      font: { size: 18 }
+    },
+    ticks: {
+      color: '#fff',
+      font: { size: 14 }
+    },
+    grid: {
+      color: 'rgba(255,255,255,0.1)'
+    }
+  },
+  y2: {
+    position: 'right',
+    beginAtZero: true,
+    grid: { drawOnChartArea: false },
+    title: {
+      display: true,
+      text: 'อุณหภูมิ / ความชื้น',
+      color: '#fff',
+      font: { size: 18 }
+    },
+    ticks: {
+      color: '#fff',
+      font: { size: 14 }
+    }
   }
-  function safeParseTimestamp(rawTimestamp) {
-    if (!rawTimestamp || typeof rawTimestamp !== 'string') {
-      return new Date(NaN);
-    }
-    return new Date(rawTimestamp.replace(' ', 'T'));
+}
+
+}
+    });
+  });
+  function avg(arr) {
+    if (!arr.length) return 0;
+    return +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
   }
-  function loadHistoryData(hours = 24) {
-    const now = Date.now();
-    const startTime = now - hours * 60 * 60 * 1000;
-  
-    get(dataRef).then(snapshot => {
-      const rawData = snapshot.val();
-      const grouped = {}; // สำหรับเก็บข้อมูลรายชั่วโมง
-  
-      Object.values(rawData).forEach(entry => {
-        const ts = safeParseTimestamp(entry.timestamp);
-        const time = ts.getTime();
-        if (!isNaN(time) && time >= startTime && time <= now) {
-          const hourLabel = ts.getHours().toString().padStart(2, '0') + ':00';
-          if (!grouped[hourLabel]) grouped[hourLabel] = { pm25: [], pm10: [] };
-          grouped[hourLabel].pm25.push(parseFloat(entry.pm25));
-          grouped[hourLabel].pm10.push(parseFloat(entry.pm10));
-        }
-      });
-  
-      // เตรียม label และเฉลี่ยข้อมูล
-      const labels = [];
-      const pm25Data = [];
-      const pm10Data = [];
-  
-      for (let i = hours - 1; i >= 0; i--) {
-        const hour = new Date(now - i * 60 * 60 * 1000);
-        const hourStr = hour.getHours().toString().padStart(2, '0') + ':00';
-      
-        labels.push(hourStr.replace(':', '.')); // ใช้ '13.00' สำหรับแสดง
-      
-        const group = grouped[hourStr]; // ใช้ '13:00' สำหรับค้น group
-      
-        if (group) {
-          const avg = arr => arr.reduce((sum, v) => sum + v, 0) / arr.length;
-          pm25Data.push(Number(avg(group.pm25).toFixed(1)));
-          pm10Data.push(Number(avg(group.pm10).toFixed(1)));
-        } else {
-          pm25Data.push(null);
-          pm10Data.push(null);
-        }
-      }
-      
-  
-      createChart(labels, pm25Data, pm10Data);
-    });
+}
+  function avg(arr) {
+    if (!arr.length) return 0;
+    return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
   }
-  function loadHistoryDataForDate(dateStr, hours = 24) {
-    const now = new Date(`${dateStr}T23:59:59`).getTime();
-    const startTime = now - hours * 60 * 60 * 1000;
-  
-    const chartContainer = document.getElementById('historyChart');
-    chartContainer.classList.add('loading');
-  
-    get(dataRef).then(snapshot => {
-      const rawData = snapshot.val();
-      const grouped = {};
-  
-      Object.values(rawData).forEach(entry => {
-        const ts = safeParseTimestamp(entry.timestamp);
-        const time = ts.getTime();
-        if (!isNaN(time) && time >= startTime && time <= now) {
-          const hourKey = ts.getHours().toString().padStart(2, '0') + ':00';
-          if (!grouped[hourKey]) grouped[hourKey] = { pm25: [], pm10: [] };
-          grouped[hourKey].pm25.push(parseFloat(entry.pm25));
-          grouped[hourKey].pm10.push(parseFloat(entry.pm10));
-        }
-      });
-  
-      const labels = [];
-      const pm25Data = [];
-      const pm10Data = [];
-  
-      for (let i = hours - 1; i >= 0; i--) {
-        const hour = new Date(now - i * 60 * 60 * 1000);
-        const hourKey = hour.getHours().toString().padStart(2, '0') + ':00';
-        const label = hourKey.replace(':', '.');
-        labels.push(label);
-  
-        const group = grouped[hourKey];
-        if (group) {
-          const avg = arr => arr.reduce((sum, v) => sum + v, 0) / arr.length;
-          pm25Data.push(Number(avg(group.pm25).toFixed(1)));
-          pm10Data.push(Number(avg(group.pm10).toFixed(1)));
-        } else {
-          pm25Data.push(null);
-          pm10Data.push(null);
-        }
-      }
-  
-      if (pm25Data.every(v => v === null)) {
-        alert("📉 ไม่พบข้อมูลในวันที่เลือก");
-      }
-  
-      createChart(labels, pm25Data, pm10Data);
-      chartContainer.classList.remove('loading');
-    });
-  }
-  window.addEventListener('load', () => {
-    loadHistoryData(24);
-  });
-  document.querySelectorAll('.chart button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const txt = btn.innerText;
-  
-      if (txt.includes('1 ชั่วโมง')) selectedHours = 1;
-      else if (txt.includes('6 ชั่วโมง')) selectedHours = 6;
-      else if (txt.includes('24 ชั่วโมง')) selectedHours = 24;
-      else if (txt.includes('7 วัน')) selectedHours = 24 * 7;
-  
-      // โหลดตามวันที่ที่เลือกไว้ (ถ้ามี) หรือโหลดล่าสุด
-      if (selectedDateStr) {
-        loadHistoryDataForDate(selectedDateStr, selectedHours);
-      } else {
-        loadHistoryData(selectedHours);
-      }
-  
-      // UI: Active button
-      document.querySelectorAll('.chart button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  
-  // 📅 เลือกวันที่แล้วโหลดกราฟ
-  document.getElementById('datePicker').addEventListener('change', (e) => {
-    selectedDateStr = e.target.value;
-    if (!selectedDateStr) return;
-  
-    loadHistoryDataForDate(selectedDateStr, selectedHours);
-  
-    // UI: ให้ปุ่ม active ตรงกับช่วงเวลา
-    document.querySelectorAll('.chart button').forEach(btn => {
-      btn.classList.remove('active');
-      if (btn.innerText.includes(selectedHours)) btn.classList.add('active');
-    });
-  });
-  
-// 📥 เมนูดาวน์โหลด CSV/Excel
-function handleDownload(type) {
-  if (!historyChart) return alert("ยังไม่มีข้อมูลให้ดาวน์โหลด");
+  // เรียกโหลดกราฟเฉลี่ยรายเดือน
+loadHourlyAverages(); // เรียกแทน loadMonthlyAverages()
 
-  const labels = historyChart.data.labels;
-  const pm25Data = historyChart.data.datasets[0].data;
-  const pm10Data = historyChart.data.datasets[1].data;
 
-  if (type === 'csv') {
-    let csv = "เวลา,PM2.5,PM10\n";
-    for (let i = 0; i < labels.length; i++) {
-      csv += `${labels[i]},${pm25Data[i] ?? ""},${pm10Data[i] ?? ""}\n`;
-    }
 
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aqi_data_${selectedDateStr || 'today'}_${selectedHours}h.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+let reportChartInstance = null;
 
-  if (type === 'pdf') {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const margin = 10;
-    let y = 15;
-  
-    const chartEl = document.getElementById('historyChart');
+function generateReport() {
+  const dateStart = document.getElementById('startDate').value;
+  const timeStart = document.getElementById('startTime').value;
+  const dateEnd = document.getElementById('endDate').value;
+  const timeEnd = document.getElementById('endTime').value;
+  const view = document.getElementById('viewType').value;
+  const types = ['pm25', 'pm10', 'temp', 'humid'].filter(id => document.getElementById(id).checked);
+  const result = document.getElementById('reportResult');
 
-pdf.setFont("THSarabunNew", "normal"); // ฟอนต์ไทย
-pdf.setFontSize(20);
-pdf.text("รายงานวิเคราะห์คุณภาพอากาศ", 105, y, { align: "center" });
-
-pdf.setFontSize(14);
-pdf.text(`วันที่จัดทำ: ${dateStr}`, margin, y += 10);
-pdf.text(`เวลา: ${timeStr}`, margin, y += 7);
-pdf.text(`สถานที่: โรงงานคอนกรีต XYZ`, margin, y += 7);
-
-pdf.setDrawColor(0); // เส้นใต้หัวข้อ
-pdf.line(margin, y += 4, 200 - margin, y);
-
-pdf.setFontSize(16);
-pdf.text("1. สรุปผลการวิเคราะห์", margin, y += 10);
-pdf.setFontSize(12);
-pdf.text(`- ค่าเฉลี่ย PM2.5: ${avgPM25}`, margin, y += 6);
-pdf.text(`- ค่าสูงสุด: ${maxPM25}`, margin, y += 6);
-
-  
-    // ✅ จับเฉพาะ Section ที่มีรายงาน
-    html2canvas(chartEl).then(canvas => {
-      const imgData = canvas.toDataURL('image/png');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const imgWidth = pageWidth - margin * 2;
-      const imgHeight = imgWidth * (canvas.height / canvas.width);
-  
-      // ✅ แทรกภาพจากกราฟ
-      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight);
-      pdf.save(`air_quality_${selectedDateStr || 'today'}_${selectedHours}h.pdf`);
-    });
-  }
-  
-
-  document.getElementById("downloadSelect").value = "";
-}
-// 📥 เชื่อมเมนูดาวน์โหลดกับฟังก์ชัน handleDownload
-document.getElementById('downloadSelect').addEventListener('change', function () {
-  const fileType = this.value;
-  if (fileType === 'pdf') {
-    downloadEngineeringPDFReport(); // เรียกฟังก์ชันใหม่
-  } else if (fileType === 'csv') {
-    handleDownloadCSV();
-  }
-  this.value = ''; // reset select
-});
-
-window.openHistoryModal = function () {
-  document.getElementById('historyModal').style.display = 'block';
-  const today = new Date().toISOString().split("T")[0];
-  document.getElementById('modalDatePicker').value = today;
-  loadHistoryTable(today);
-};
-document.getElementById('modalDatePicker').addEventListener('change', function () {
-  loadHistoryTable(this.value);
-});
-function loadHistoryTable(dateStr) {
-  if (!dateStr) return;
-  const selectedDate = new Date(dateStr);
-  const start = new Date(selectedDate.setHours(0, 0, 0, 0)).getTime();
-  const end = new Date(selectedDate.setHours(23, 59, 59, 999)).getTime();
-
-  get(dataRef).then(snapshot => {
-    const data = snapshot.val();
-    const tbody = document.getElementById('historyTableBody');
-    tbody.innerHTML = "";
-
-    const rows = [];
-
-    Object.values(data).forEach(entry => {
-      const ts = new Date(entry.timestamp).getTime();
-      if (ts >= start && ts <= end) {
-        rows.push(`
-          <tr>
-            <td>${new Date(ts).toLocaleTimeString('th-TH')}</td>
-            <td>${entry.pm25 ?? '--'}</td>
-            <td>${entry.pm10 ?? '--'}</td>
-            <td>${entry.temperature ?? 'undefined'}</td>
-            <td>${entry.humidity ?? 'undefined'}</td>
-            <td>${entry.pump_status ?? '--'}</td>
-            <td>${getAQILevel(entry.pm25)}</td>
-          </tr>
-        `);
-      }
-    });
-
-    tbody.innerHTML = rows.length > 0 ? rows.join("") : `<tr><td colspan="7">ไม่พบข้อมูลในวันนี้</td></tr>`;
-  });
-}
-function getAQILevel(pm25) {
-  const val = parseFloat(pm25);
-  if (val <= 25) return 'ดีมาก';
-  if (val <= 37) return 'ดี';
-  if (val <= 50) return 'ปานกลาง';
-  if (val <= 90) return 'เริ่มมีผล';
-  return 'อันตราย';
-}
-// สร้างตัวแปร Gauge สำหรับแต่ละค่า
-var pm25Gauge = new JustGage({
-  id: "gauge-pm25", // ระบุ id ที่จะนำมารวมกับ HTML
-  value: 0, // ค่าเริ่มต้น
-  min: 0, // ค่าต่ำสุด
-  max: 100, // ค่าสูงสุด
-  title: "PM2.5 (µg/m³)",
-  label: "µg/m³"
-});
-var pm10Gauge = new JustGage({
-  id: "gauge-pm10", 
-  value: 0,
-  min: 0,
-  max: 200,
-  title: "PM10 (µg/m³)",
-  label: "µg/m³"
-});
-var tempGauge = new JustGage({
-  id: "gauge-temp", 
-  value: 0,
-  min: -10,
-  max: 50,
-  title: "Temperature (°C)",
-  label: "°C"
-});
-var humidityGauge = new JustGage({
-  id: "gauge-humidity", 
-  value: 0,
-  min: 0,
-  max: 100,
-  title: "Humidity (%)",
-  label: "%"
-});
-// ฟังก์ชันในการดึงข้อมูลจาก Firebase
-function fetchLatestData() {
-  const db = getDatabase(); // ใช้ฟังก์ชันจาก modular SDK
-  const dataRef = ref(db, 'iot_data');
-
-  get(dataRef).then(snapshot => {
-    const data = snapshot.val();
-    const tableBody = document.getElementById('table-body');
-    tableBody.innerHTML = '';
-
-    if (!data) {
-      tableBody.innerHTML = '<tr><td colspan="6">ไม่พบข้อมูล</td></tr>';
-      return;
-    }
-
-    // 🔄 แปลงเป็น array และเลือก 5 อันสุดท้าย
-    const recentData = Object.values(data)
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // เรียงใหม่ตามเวลา (ใหม่ -> เก่า)
-      .slice(0, 4); // เอาแค่ 5 แถวล่าสุด
-
-    recentData.forEach(entry => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${new Date(entry.timestamp).toLocaleTimeString('th-TH')}</td>
-        <td>${entry.pm25 || '--'}</td>
-        <td>${entry.pm10 || '--'}</td>
-        <td>${entry.temperature || '--'}</td>
-        <td>${entry.humidity || '--'}</td>
-        <td>${entry.pump_status || '--'}</td>
-      `;
-      tableBody.appendChild(row);
-    });
-  });
-}
-
-
-function loadSummaryStats() {
-  const now = Date.now();
-  const startTime = now - 24 * 60 * 60 * 1000; // 24 ชั่วโมงย้อนหลัง
-
-  get(dataRef).then(snapshot => {
-    const data = snapshot.val();
-    const values = Object.values(data).filter(entry => {
-      const ts = new Date(entry.timestamp).getTime();
-      return ts >= startTime;
-    });
-
-    if (values.length === 0) return;
-
-    // เก็บค่าทั้งหมด
-    const pm25Values = values.map(v => parseFloat(v.pm25)).filter(Number.isFinite);
-    const pm10Values = values.map(v => parseFloat(v.pm10)).filter(Number.isFinite);
-    const tempValues = values.map(v => parseFloat(v.temperature)).filter(Number.isFinite);
-    const humidityValues = values.map(v => parseFloat(v.humidity)).filter(Number.isFinite);
-
-    // ฟังก์ชันหาค่าเฉลี่ย
-    const avg = arr => (arr.reduce((sum, v) => sum + v, 0) / arr.length).toFixed(0);
-
-    // หาค่าสูงสุดและต่ำสุด พร้อมเวลา
-    const getMaxWithTime = (arr, field) => {
-      const maxEntry = arr.reduce((max, cur) =>
-        parseFloat(cur[field]) > parseFloat(max[field]) ? cur : max, arr[0]);
-      return {
-        value: parseFloat(maxEntry[field]),
-        time: new Date(maxEntry.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-      };
-    };
-
-    const getMinWithTime = (arr, field) => {
-      const minEntry = arr.reduce((min, cur) =>
-        parseFloat(cur[field]) < parseFloat(min[field]) ? cur : min, arr[0]);
-      return {
-        value: parseFloat(minEntry[field]),
-        time: new Date(minEntry.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-      };
-    };
-
-    const pm25Max = getMaxWithTime(values, 'pm25');
-    const pm25Min = getMinWithTime(values, 'pm25');
-
-    // นำข้อมูลไปแสดงใน DOM
-    document.getElementById('avg-pm25').innerText = avg(pm25Values);
-    document.getElementById('avg-pm10').innerText = avg(pm10Values);
-    document.getElementById('avg-temp').innerText = avg(tempValues);
-    document.getElementById('avg-humidity').innerText = avg(humidityValues);
-    document.getElementById('max-pm25').innerHTML = `${pm25Max.value} µg/m³<br><small>(${pm25Max.time} น.)</small>`;
-    document.getElementById('min-pm25').innerHTML = `${pm25Min.value} µg/m³<br><small>(${pm25Min.time} น.)</small>`;
-  });
-}
-function countExceedances() {
-  const now = Date.now();
-  const startTime = now - 24 * 60 * 60 * 1000; // 24 ชั่วโมง
-
-  get(dataRef).then(snapshot => {
-    const data = snapshot.val();
-    if (!data) return;
-
-    let countPM25 = 0;
-    let countPM10 = 0;
-
-    Object.values(data).forEach(entry => {
-      const ts = new Date(entry.timestamp).getTime();
-      if (ts >= startTime) {
-        if (parseFloat(entry.pm25) > 50) countPM25++;
-        if (parseFloat(entry.pm10) > 120) countPM10++;
-      }
-    });
-
-    // แสดงผล
-    document.getElementById('exceed-pm25').innerText = countPM25;
-    document.getElementById('exceed-pm10').innerText = countPM10;
-  });
-}
-
-function downloadEngineeringPDFReport() {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF("p", "mm", "a4");
-  const margin = 15;
-  let y = margin;
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('th-TH');
-  const timeStr = now.toLocaleTimeString('th-TH');
-
-  pdf.setFont("helvetica");
-  pdf.setFontSize(18);
-  pdf.text("รายงานวิเคราะห์คุณภาพอากาศ (Engineering Report)", 105, y, { align: "center" });
-  y += 10;
-
-  pdf.setFontSize(12);
-  pdf.text(`วันที่: ${dateStr}   เวลา: ${timeStr}`, margin, y); y += 8;
-  pdf.text(`สถานที่วัด: โรงงานคอนกรีต XYZ`, margin, y); y += 10;
-
-  // 🔹 Summary
-  pdf.setFontSize(14);
-  pdf.text("1. ข้อมูลสรุป (Summary)", margin, y); y += 8;
-
-  const avgPM25 = document.getElementById('avg-pm25').innerText || "--";
-  const avgPM10 = document.getElementById('avg-pm10').innerText || "--";
-  const avgTemp = document.getElementById('avg-temp').innerText || "--";
-  const avgHumidity = document.getElementById('avg-humidity').innerText || "--";
-  const maxPM25 = document.getElementById('max-pm25').innerText.replace(/<[^>]*>/g, '') || "--";
-  const minPM25 = document.getElementById('min-pm25').innerText.replace(/<[^>]*>/g, '') || "--";
-
-  pdf.setFontSize(12);
-  pdf.text(`- ค่าเฉลี่ย PM2.5: ${avgPM25} µg/m³`, margin, y); y += 6;
-  pdf.text(`- ค่าเฉลี่ย PM10: ${avgPM10} µg/m³`, margin, y); y += 6;
-  pdf.text(`- อุณหภูมิเฉลี่ย: ${avgTemp} °C`, margin, y); y += 6;
-  pdf.text(`- ความชื้นสัมพัทธ์เฉลี่ย: ${avgHumidity} %`, margin, y); y += 6;
-  pdf.text(`- PM2.5 สูงสุด: ${maxPM25}`, margin, y); y += 6;
-  pdf.text(`- PM2.5 ต่ำสุด: ${minPM25}`, margin, y); y += 10;
-
-  // 🔹 กราฟแนวโน้ม
-  pdf.setFontSize(14);
-  pdf.text("2. กราฟแนวโน้มคุณภาพอากาศ", margin, y); y += 5;
-
-  html2canvas(document.getElementById("historyChart")).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const imgWidth = 180;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    pdf.addImage(imgData, "PNG", margin, y, imgWidth, imgHeight);
-    y += imgHeight + 10;
-
-    // 🔹 หมายเหตุ / ข้อเสนอแนะ
-    pdf.setFontSize(14);
-    pdf.text("3. ข้อเสนอแนะเบื้องต้น", margin, y); y += 8;
-    pdf.setFontSize(12);
-    pdf.text("- ติดตั้งระบบแจ้งเตือนเมื่อ PM2.5 เกิน 50 µg/m³", margin, y); y += 6;
-    pdf.text("- ควรเปิดระบบกรองอากาศอัตโนมัติช่วงบ่าย", margin, y); y += 6;
-    pdf.text("- เพิ่มจำนวนเซนเซอร์ในจุดอับลม", margin, y); y += 10;
-
-    // 🔚 ปิดท้าย
-    pdf.setFontSize(12);
-    pdf.text("รายงานนี้จัดทำเพื่อวิเคราะห์และปรับปรุงสภาพแวดล้อมโรงงานให้ปลอดภัย", margin, y);
-
-    // 📥 Save PDF
-    pdf.save(`Air_Quality_Report_${dateStr}.pdf`);
-  });
-}
-
-function showWebAlert(pm25, pm10) {
-  const existing = document.querySelector('.web-alert');
-  if (existing) existing.remove(); // ลบ popup เดิมก่อน
-
-  const msg = `⚠️ แจ้งเตือนคุณภาพอากาศ\nPM2.5: ${pm25} µg/m³\nPM10: ${pm10} µg/m³`;
-
-  const alertDiv = document.createElement("div");
-  alertDiv.className = "web-alert";
-
-  const closeBtn = document.createElement("span");
-  closeBtn.innerHTML = "&times;";
-  closeBtn.className = "close-btn";
-  closeBtn.onclick = () => alertDiv.remove();
-
-  const msgContent = document.createElement("div");
-  msgContent.innerText = msg;
-
-  alertDiv.appendChild(closeBtn);
-  alertDiv.appendChild(msgContent);
-  document.body.appendChild(alertDiv);
-}
-
-
-function saveNotificationSettings() {
-  const userId = firebase.auth().currentUser.uid;
-  const pm25Threshold = parseInt(document.getElementById("pm25-threshold").value);
-  const pm10Threshold = parseInt(document.getElementById("pm10-threshold").value);
-  const enableWeb = document.getElementById("enable-web-alert").checked;
-  const enableLine = document.getElementById("enable-line-alert").checked;
-  const enableEmail = document.getElementById("enable-email-alert").checked;
-  const lineToken = document.getElementById("line-token").value.trim();
-  const email = document.getElementById("email-address").value.trim();
-
-  firebase.database().ref(`userSettings/${userId}`).set({
-    pm25Threshold,
-    pm10Threshold,
-    enableWeb,
-    enableLine,
-    enableEmail,
-    lineToken,
-    email
-  }).then(() => {
-    alert("✅ บันทึกการตั้งค่าเรียบร้อยแล้ว");
-    closeSettingsModal();
-  });
-}
-function checkAndNotify(data) {
-  const userId = firebase.auth().currentUser.uid;
-  firebase.database().ref(`userSettings/${userId}`).once('value').then(snapshot => {
-    const settings = snapshot.val();
-    if (!settings) return;
-
-    const { pm25, pm10 } = data;
-    const alerts = [];
-
-    if (settings.enableWeb && pm25 > settings.pm25Threshold) {
-      alerts.push(`⚠️ PM2.5 เกินเกณฑ์: ${pm25} µg/m³`);
-    }
-    if (settings.enableWeb && pm10 > settings.pm10Threshold) {
-      alerts.push(`⚠️ PM10 เกินเกณฑ์: ${pm10} µg/m³`);
-    }
-
-    if (settings.enableEmail && pm25 > settings.pm25Threshold) {
-      sendEmailAlert(pm25, pm10, settings.email);
-    }
-  
-    if (alerts.length > 0) {
-      alert(alerts.join('\n'));
-    }
-
-    // เขียนลง path Firebase เพื่อให้ Cloud Function ส่ง LINE/Email
-    if ((settings.enableLine || settings.enableEmail) && (pm25 > settings.pm25Threshold || pm10 > settings.pm10Threshold)) {
-      firebase.database().ref(`alerts`).push({
-        userId,
-        timestamp: new Date().toISOString(),
-        pm25,
-        pm10,
-        lineToken: settings.lineToken,
-        email: settings.email,
-        notifyLine: settings.enableLine,
-        notifyEmail: settings.enableEmail
-      });
-    }
-  });
-}
-function sendEmailAlert(pm25, pm10, toEmail) {
-  const timestamp = new Date().toLocaleString("th-TH");
-
-  const params = {
-    to_email: toEmail,
-    pm25_value: pm25.toFixed(1),
-    pm10_value: pm10.toFixed(1),
-    timestamp: timestamp
-  };
-
-  emailjs.send("service_0utswtt", "template_e3kjvgo", params)
-    .then(() => {
-      console.log("✅ ส่งอีเมลสำเร็จถึง", toEmail);
-    }, (error) => {
-      console.error("❌ ส่งอีเมลล้มเหลว:", error);
-    });
-}
-
-
-
-
-// ✅ สำคัญ: ให้ฟังก์ชันนี้ถูกเรียกได้จาก HTML
-window.downloadEngineeringPDFReport = downloadEngineeringPDFReport;
-
-
-// เรียกใช้ฟังก์ชันทุกๆ 5 วินาทีเพื่ออัปเดตข้อมูล
-setInterval(fetchLatestData, 5000);
-// เรียกใช้ฟังก์ชันทันทีที่หน้าโหลด
-window.onload = () => {
-  loadUserNotificationSetting().then(() => {
-    fetchLatestData();
-    loadSummaryStats();
-    countExceedances();
-  });
-};
-
-
-
-// ✅ ทำให้ฟังก์ชันมองเห็นจาก HTML
-window.saveNotificationSettings = function () {
-  const enable = document.getElementById('enable-web-alert').checked;
-  const pm25 = parseInt(document.getElementById('pm25-threshold').value);
-  const pm10 = parseInt(document.getElementById('pm10-threshold').value);
-
-  const userRef = ref(db, `users/${userId}`);
-  set(userRef, {
-    notify_web: enable,
-    threshold_pm25: pm25,
-    threshold_pm10: pm10
-  }).then(() => {
-    alert("✅ บันทึกการตั้งค่าแล้ว");
-    loadUserNotificationSetting();
-  });
-};
-
-
-window.loadUserNotificationSetting = function () {
-  const userRef = ref(db, `users/${userId}`);
-  get(userRef).then(snapshot => {
-    if (snapshot.exists()) {
-      const prefs = snapshot.val();
-      userNotifyWeb = !!prefs.notify_web;
-      thresholdPM25 = prefs.threshold_pm25 || 50;
-      thresholdPM10 = prefs.threshold_pm10 || 100;
-
-      // ใส่ค่าลง input HTML
-      document.getElementById('enable-web-alert').checked = userNotifyWeb;
-      document.getElementById('pm25-threshold').value = thresholdPM25;
-      document.getElementById('pm10-threshold').value = thresholdPM10;
-    }
-  });
-};
-
-
-function openSettingsModal() {
-  document.getElementById('settingsModal').style.display = 'block';
-}
-
-function closeSettingsModal() {
-  document.getElementById('settingsModal').style.display = 'none';
-  
-}
-window.openSettingsModal = function () {
-  document.getElementById('settingsModal').style.display = 'block';
-};
-
-window.closeSettingsModal = function () {
-  document.getElementById('settingsModal').style.display = 'none';
-};
-
-setTimeout(() => {
-  alertDiv.remove();
-}, 10000); // หายหลัง 10 วินาที
-
-window.testSendEmail = function () {
-  const testPM25 = 90;
-  const testPM10 = 120;
-  const testEmail = document.getElementById("email-address").value;
-
-  if (!testEmail) {
-    alert("⚠️ กรุณากรอกอีเมลก่อนส่ง");
+  if (!dateStart || !dateEnd || !timeStart || !timeEnd || types.length === 0) {
+    result.innerHTML = '<p class="text-danger">กรุณากรอกวันเวลาให้ครบ และเลือกข้อมูลอย่างน้อย 1 ประเภท</p>';
     return;
   }
 
-  sendEmailAlert(testPM25, testPM10, testEmail);
+  const start = new Date(`${dateStart}T${timeStart}`);
+  const end = new Date(`${dateEnd}T${timeEnd}`);
+
+  const typeMap = {
+    pm25: 'PM2.5',
+    pm10: 'PM10',
+    temp: 'Temperature',
+    humid: 'Humidity'
+  };
+
+  firebase.database().ref("iot_data").once("value", snapshot => {
+    const data = snapshot.val();
+    if (!data) {
+      result.innerHTML = '<p class="text-warning">ไม่พบข้อมูล</p>';
+      return;
+    }
+
+    const filteredKeys = Object.keys(data).filter(key => {
+      const timestamp = data[key].timestamp;
+      if (!timestamp) return false;
+      const recordTime = new Date(timestamp.replace(" ", "T"));
+      return recordTime >= start && recordTime <= end;
+    }).sort();
+
+    if (filteredKeys.length === 0) {
+      result.innerHTML = '<p class="text-warning">ไม่มีข้อมูลในช่วงเวลานี้</p>';
+      return;
+    }
+
+    const labels = [];
+    const datasetsMap = {};
+
+    types.forEach(type => {
+      datasetsMap[type] = {
+        label: typeMap[type],
+        data: [],
+        borderWidth: 2,
+        fill: false,
+        tension: 0.2,
+        borderColor: type === 'pm25' ? '#ff6384' :
+                     type === 'pm10' ? '#36a2eb' :
+                     type === 'temp' ? '#ffcc00' : '#4bc0c0'
+      };
+    });
+
+    filteredKeys.forEach(key => {
+      const entry = data[key];
+      const timeLabel = entry.timestamp ?? key.replace("_", " ");
+      labels.push(timeLabel);
+      types.forEach(type => {
+        datasetsMap[type].data.push(entry[type] ?? null);
+      });
+    });
+
+    // ✅ ตาราง
+  if (view === 'table') {
+  let html = `<p>ข้อมูลย้อนหลังตั้งแต่ <strong>${dateStart} ${timeStart}</strong> ถึง <strong>${dateEnd} ${timeEnd}</strong></p>`;
+  html += `<table class="table table-dark table-bordered mt-3"><thead><tr><th>วัน-เวลา</th>`;
+
+  // แสดงหัวตารางจาก typeMap + ปั๊ม
+  html += types.map(t => `<th>${typeMap[t]}</th>`).join('');
+  html += `<th>สถานะปั๊มน้ำ</th></tr></thead><tbody>`;
+
+  filteredKeys.forEach(key => {
+    const row = data[key];
+    html += `<tr><td>${row.timestamp ?? key.replace("_", " ")}</td>`;
+
+    types.forEach(t => {
+      html += `<td>${row[t] !== undefined ? row[t] : '-'}</td>`;
+    });
+types.forEach(t => {
+  const field = t === 'temp' ? 'temperature' : t === 'humid' ? 'humidity' : t;
+  html += `<td>${row[field] !== undefined ? row[field] : '-'}</td>`;
+});
+
+    // ✅ เพิ่มคอลัมน์สถานะปั๊มน้ำ
+    const pumpStatus = row.pump_status ?? '-';
+    const badge = pumpStatus === "ON"
+      ? `<span class="badge bg-success">ON</span>`
+      : pumpStatus === "OFF"
+      ? `<span class="badge bg-danger">OFF</span>`
+      : `<span class="badge bg-secondary">-</span>`;
+
+    html += `<td>${badge}</td></tr>`;
+  });
+
+  html += `</tbody></table>`;
+  result.innerHTML = html;
 }
+if (view === 'table') {
+  let html = `<p>ข้อมูลย้อนหลังตั้งแต่ <strong>${dateStart} ${timeStart}</strong> ถึง <strong>${dateEnd} ${timeEnd}</strong></p>`;
+  html += `<table class="table table-dark table-bordered mt-3"><thead><tr><th>วัน-เวลา</th>`;
+  html += types.map(t => `<th>${typeMap[t]}</th>`).join('');
+  html += `<th>สถานะปั๊มน้ำ</th></tr></thead><tbody>`;
+
+  filteredKeys.forEach(key => {
+    const row = data[key];
+    html += `<tr><td>${row.timestamp ?? key.replace("_", " ")}</td>`;
+
+    types.forEach(t => {
+      const field = t === 'temp' ? 'temperature' :
+                    t === 'humid' ? 'humidity' :
+                    t;
+      html += `<td>${row[field] !== undefined ? row[field] : '-'}</td>`;
+    });
+
+    const pumpStatus = row.pump_status ?? '-';
+    const badge = pumpStatus === "ON"
+      ? `<span class="badge bg-success">ON</span>`
+      : pumpStatus === "OFF"
+      ? `<span class="badge bg-danger">OFF</span>`
+      : `<span class="badge bg-secondary">-</span>`;
+    html += `<td>${badge}</td></tr>`;
+  });
+
+  html += `</tbody></table>`;
+  result.innerHTML = html;
+}
+
+
+    // ✅ กราฟ
+    else {
+      result.innerHTML = `
+        <div class="position-relative">
+          <canvas id="reportChart" style="height: 600px;"></canvas>
+        </div>
+      `;
+
+      const ctx = document.getElementById('reportChart').getContext('2d');
+      if (reportChartInstance) reportChartInstance.destroy();
+
+    reportChartInstance = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels,
+    datasets: Object.values(datasetsMap)
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: '#ffffff',
+          font: { size: 20 }  // 👈 ใหญ่ขึ้น
+        }
+      },
+      tooltip: {
+        titleFont: { size: 16 },
+        bodyFont: { size: 16 },
+        backgroundColor: '#333',
+        titleColor: '#fff',
+        bodyColor: '#fff'
+      }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'วัน-เวลา',
+          color: '#ffffff',
+          font: { size: 24 }  // 👈 ใหญ่ขึ้น
+        },
+        ticks: {
+          color: '#ffffff',
+          font: { size: 18 },  // 👈 ชัดขึ้น
+          autoSkip: false,
+          maxRotation: 45,
+          minRotation: 45,
+          callback: function(value, index, ticks) {
+            const step = Math.ceil(ticks.length / 10);
+            return index % step === 0 ? this.getLabelForValue(value) : '';
+          }
+        },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'ค่าที่วัดได้ (µg/m³)',
+          color: '#ffffff',
+          font: { size: 20 }
+        },
+        ticks: {
+          color: '#ffffff',
+          font: { size: 18 }
+        },
+        grid: {
+          color: 'rgba(255,255,255,0.1)'
+        }
+      }
+    }
+  }
+});
+
+    }
+  });
+}
+
+
+
+
+
+
+
+
+
+
